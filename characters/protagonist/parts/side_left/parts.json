@@ -74,7 +74,8 @@
         1474
       ],
       "copy_of": "foot_l",
-      "shade": 0.78
+      "shade": 0.88,
+      "shrink": 2
     },
     "shin_r": {
       "id": 2,
@@ -94,7 +95,8 @@
         1435
       ],
       "copy_of": "shin_l",
-      "shade": 0.78
+      "shade": 0.88,
+      "shrink": 2
     },
     "thigh_r": {
       "id": 3,
@@ -114,7 +116,8 @@
         1078
       ],
       "copy_of": "thigh_l",
-      "shade": 0.78
+      "shade": 0.88,
+      "shrink": 2
     },
     "upper_arm_r": {
       "id": 4,
@@ -134,7 +137,8 @@
         625
       ],
       "copy_of": "upper_arm_l",
-      "shade": 0.78
+      "shade": 0.88,
+      "shrink": 0
     },
     "forearm_r": {
       "id": 5,
@@ -154,7 +158,8 @@
         792
       ],
       "copy_of": "forearm_l",
-      "shade": 0.78
+      "shade": 0.88,
+      "shrink": 0
     },
     "hand_r": {
       "id": 6,
@@ -174,7 +179,8 @@
         908
       ],
       "copy_of": "hand_l",
-      "shade": 0.78
+      "shade": 0.88,
+      "shrink": 0
     },
     "pelvis": {
       "id": 7,

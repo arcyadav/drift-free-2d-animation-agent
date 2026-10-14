@@ -5,6 +5,7 @@ Run: python -m tests.test_part_masks   (needs views/front.png, keypoints.json, p
 import json
 
 import numpy as np
+from scipy import ndimage as ndi
 from PIL import Image
 
 from src import config
@@ -59,13 +60,11 @@ def test_side_parts():
     for limb in pms.LIMBS:                         # far limbs: darker copies of the near ones
         far = np.asarray(Image.open(CHAR / f"parts/side_left/{limb}_r.png"))
         near = np.asarray(Image.open(CHAR / f"parts/side_left/{limb}_l.png"))
-        outside = (far[..., 3] > 0) & (near[..., 3] < 128)
-        # the cleaned near hand/forearm has see-through denim edges; the far copy may reach
-        # under them (≤2%) — at rest the jeans in front hide it (checked by test_hidden_fill)
-        assert outside.sum() < 0.02 * (far[..., 3] > 0).sum(), "far copy must stay inside the near limb"
+        region = ndi.binary_dilation((lab == pms.PART_ID[f"{limb}_l"]) | (near[..., 3] > 0), iterations=1)
         on = far[..., 3] > 0
-        assert on.sum() > 0.5 * (near[..., 3] > 0).sum()   # 2-px shrink eats thin fingers
-        assert far[on][:, :3].mean() < near[on][:, :3].mean()
+        assert not (on & ~region).any(), "far copy must stay inside the near limb's region"
+        assert on.sum() > 0.7 * (near[..., 3] > 0).sum(), "far copy too thin"
+        assert far[on][:, :3].mean() < near[on & (near[..., 3] > 0)][:, :3].mean() + 1
     print("side part masks: all checks passed")
 
 

@@ -51,8 +51,11 @@ COLOURS = {
     "head_hair": (120, 60, 30), "upper_arm_l": (220, 50, 50), "forearm_l": (250, 120, 120),
     "hand_l": (250, 190, 190), "ponytail": (200, 40, 160),
 }
-FAR_SHADE = 0.78       # far limbs: same art, darker (they are in shadow behind the body)
-FAR_SHRINK = 2         # px the far copy is shrunk so it never peeks through the near edge
+FAR_SHADE = 0.88       # far limbs: same art in shadow tone (0.78 read as almost black)
+FAR_SHRINK = 2         # px the far LEG is shrunk so it never peeks through the near leg's edge
+FAR_EDGE = 2.5         # far arm stays this far inside the drawing's outer edge
+FAR_SHRINK_BY = {"upper_arm": 0, "forearm": 0, "hand": 0, "thigh": FAR_SHRINK, "shin": FAR_SHRINK,
+                 "foot": FAR_SHRINK}
 SEAM_DL = 4            # sleeve seam: L* at least this much below the row's tee median
 SEAM_WIN = (-55, 5)    # search window for the seam, x relative to the shoulder joint
 SEAM_TOL = 6           # px from the fitted line to count as an inlier
@@ -215,13 +218,22 @@ def split_parts(rgba, kp, pal):
     return lab_map, info
 
 
-def far_copy(near, shade=FAR_SHADE):
-    """far limb = near limb, darker, shrunk 2 px: at rest it sits exactly under the near
-    limb, and its edge would otherwise show through the near limb's soft outline."""
+def outer_edge(rgba):
+    """pixels within FAR_EDGE px of the drawing's true background."""
+    return ndi.distance_transform_edt(rgba[..., 3] > 0) <= FAR_EDGE
+
+
+def far_copy(near, shade=FAR_SHADE, shrink=FAR_SHRINK, edge_band=None):
+    """far limb = near limb in shadow tone. Legs are shrunk ~2 px: at rest the far leg sits
+    exactly under the near leg and would show through its soft outline. Arms are not shrunk
+    (thin fingers looked starved) — at rest the tee and jeans cover the far arm completely."""
     cut = near.copy()
-    # blur the edge first, then cut further inside: smooth contour, ~FAR_SHRINK px smaller
-    a = ndi.gaussian_filter(cut[..., 3].astype(np.float32) / 255, FAR_SHRINK)
-    cut[..., 3] = (np.clip((a - 0.78) / 0.12, 0, 1) * 255).astype(np.uint8)
+    if edge_band is not None:                 # never at the outer silhouette: would show
+        cut[edge_band, 3] = 0                 # through the near limb's soft outline at rest
+    if shrink > 0:
+        # blur the edge first, then cut further inside: smooth contour, ~shrink px smaller
+        a = ndi.gaussian_filter(cut[..., 3].astype(np.float32) / 255, shrink)
+        cut[..., 3] = (np.clip((a - 0.78) / 0.12, 0, 1) * 255).astype(np.uint8)
     cut[..., :3] = (cut[..., :3] * shade).astype(np.uint8)
     return cut
 
@@ -233,10 +245,13 @@ def run(character):
     near_parts = [(n, j) for n, j in PARTS if not n.endswith("_r")]
     issues, stats = validate(lab_map, near_parts, PART_ID)
     for limb in LIMBS:                                    # far limbs share the near limb's stats
-        stats[f"{limb}_{FAR}"] = {**stats[f"{limb}_{NEAR}"], "copy_of": f"{limb}_{NEAR}", "shade": FAR_SHADE}
+        stats[f"{limb}_{FAR}"] = {**stats[f"{limb}_{NEAR}"], "copy_of": f"{limb}_{NEAR}", "shade": FAR_SHADE,
+                                  "shrink": FAR_SHRINK_BY[limb]}
     save(char_dir, VIEW, rgba, lab_map, head_pivots(kp, info, lab_map, PART_ID["ponytail"]),
          info, issues, stats, PARTS, PARENT, PART_ID, COLOURS,
-         derived={f"{limb}_{FAR}": (f"{limb}_{NEAR}", far_copy) for limb in LIMBS})
+         derived={f"{limb}_{FAR}": (f"{limb}_{NEAR}",
+                                    lambda c, k=FAR_SHRINK_BY[limb]: far_copy(c, FAR_SHADE, k, outer_edge(rgba)))
+                  for limb in LIMBS})
     print("info:", info)
     for n, _ in near_parts:
         s = stats[n]

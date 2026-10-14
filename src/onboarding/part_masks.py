@@ -75,6 +75,7 @@ BLEND_REACH = 2        # ... within this many px
 MOVERS = [f"{a}_{s}" for s in "lr" for a in ("upper_arm", "forearm", "hand")]
 UNMIX_REACH = 22       # arm pixels this close to a part behind may carry its colour (finger gaps)
 UNMIX_MIN = 0.12       # ignore tiny mixes (clean skin / outline)
+SOLID_MAX_B = 0.6      # solid copy: pixels less than 60% denim count as arm
 UNMIX_CLEAN_GAP = 4    # px from the arm before denim counts as clean
 DEFAULT_LINE = (78, 52, 40)   # warm dark brown, if no clean arm outline is found
 UNMIX_CONTRAST = 40    # RGB distance arm ↔ part behind below which there is nothing to unmix
@@ -348,13 +349,16 @@ def validate(lab_map, parts=PARTS, part_id=PART_ID):
     return issues, stats
 
 
-def unmix_movers(cuts, rgba, lab_map, parts, part_id, movers):
+def unmix_movers(cuts, rgba, lab_map, parts, part_id, movers, solid=None):
     """The arm is drawn over the jeans, so its edge pixels are a mix of arm and denim.
     Per pixel near a part behind it: p = (1-b)*A + b*D with D = denim just outside and A =
     the arm's own colour (skin or its outline, whichever explains p best). The arm keeps
     (p - b*D)/(1-b) at opacity (1-b); the part behind gets D at that pixel. Over the jeans
     the sum is exactly the original pixel; once the arm swings away its edge is clean —
-    no blue fringe, no denim between the fingers."""
+    no blue fringe, no denim between the fingers.
+    solid (dict, optional) receives a full-width version of each moving part: mixed edge
+    pixels painted in the arm's own colour instead of made see-through (source for the
+    far-arm copies, whose fingers would otherwise look thin)."""
     names = [n for n, _ in parts]
     mov = [m for m in movers if m in part_id and (lab_map == part_id[m]).any()]
     if not mov:
@@ -415,7 +419,13 @@ def unmix_movers(cuts, rgba, lab_map, parts, part_id, movers):
         if not act.any():
             continue
         ys, xs = np.where(reg)
-        ys, xs, bt, P_, D_ = ys[act], xs[act], bta[act], p[act], D[act]
+        ys, xs, bt, P_, D_, A_ = ys[act], xs[act], bta[act], p[act], D[act], Ab[act]
+        if solid is not None:
+            sc = cuts[m].copy()
+            mostly_arm = bt < SOLID_MAX_B
+            sc[ys[mostly_arm], xs[mostly_arm], :3] = np.clip(A_[mostly_arm], 0, 255).astype(np.uint8)
+            sc[ys[~mostly_arm], xs[~mostly_arm], 3] = 0           # pure denim (finger gaps): not arm
+            solid[m] = sc
         a8 = np.round(255 * (1 - bt))                             # 8-bit opacity the arm keeps
         al = (a8 / 255)[:, None]
         # colour from the rounded opacity → arm over D reproduces p exactly
@@ -485,13 +495,15 @@ def save(char_dir, view, rgba, lab_map, pivots, info, issues, stats, parts, pare
         cut = rgba.copy()
         cut[..., 3] = np.where(lab_map == part_id[name], rgba[..., 3], 0)
         cuts[name] = cut
-    info["unmixed_px"] = unmix_movers(cuts, rgba, lab_map, parts, part_id, MOVERS)
+    solid = {}
+    info["unmixed_px"] = unmix_movers(cuts, rgba, lab_map, parts, part_id, MOVERS, solid)
     final = {}
     for name, _ in parts:
         if not (derived and name in derived):
-            final[name] = dehalo(cuts[name], band)
+            final[name] = dehalo(cuts[name].copy(), band)
     for name, (src, fn) in (derived or {}).items():
-        final[name] = fn(final[src])
+        base = dehalo(solid[src].copy(), band) if src in solid else final[src]
+        final[name] = fn(base)
     for name, _ in parts:
         save_image(final[name], out / f"{name}.png")
     meta = {"view": view, "canvas": list(rgba.shape[1::-1]), "info": info, "issues": issues,

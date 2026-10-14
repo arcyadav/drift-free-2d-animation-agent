@@ -184,9 +184,14 @@ def run(character, view="front"):
         parts[name][region] = art[region]                       # identical at rest
         added[name] += int(region.sum())
 
-    from src.onboarding.part_masks_side import far_copy
+    from src.onboarding.part_masks_side import far_copy, outer_edge
     for n, p in copies.items():                                   # far limbs: shaded filled copies
-        parts[n] = far_copy(parts[p["copy_of"]], p["shade"])
+        im = far_copy(parts[p["copy_of"]], p["shade"], p.get("shrink", 2), outer_edge(art))
+        raw = np.asarray(Image.open(d / f"{n}.png").convert("RGBA"))
+        own = raw[..., 3] > 0                    # the raw far cut-out keeps full-width fingers
+        im[~own & (im[..., 3] < 255), 3] = 0     # from the fills: only solid pixels
+        im[own] = raw[own]
+        parts[n] = im
 
     out = d / "filled"
     out.mkdir(exist_ok=True)
