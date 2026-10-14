@@ -32,5 +32,5 @@ Rules for every image: plain cream background, no text labels, flat colours, sam
 - Anything else useful: original generation prompt (`prompt.txt`), colour notes, rejected attempts.
 
 ## motion/
-- `mixamo/`  → Mixamo downloads (Walking, Sitting) as .fbx or .bvh
+- `mixamo/`  → Mixamo downloads (Walking, Sitting) as Collada .dae zips (In Place off, Without Skin, 30 fps)
 - `video/`   → your phone clips, e.g. `wave.mp4` (3–5 s, full body, plain wall, still camera)
