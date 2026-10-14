@@ -23,7 +23,15 @@ def test_walk():
     assert 15 < load.max() < 40, f"knee gives as the foot takes the weight, got {load.max():.0f} deg"
     assert mid.max() < 20, f"mid-stance knee nearly straight (soft), got {mid.max():.0f} deg"
     H = np.array(act["root"])[:, 1]
-    assert 0 < int(H.argmin()) <= 4, "lowest point ('down') just after heel strike"
+    step = len(H) // 2
+    assert 0 < int(H[:step].argmin()) <= 3, "DOWN (lowest) just after heel strike"
+    up = int(H[:step].argmax())
+    assert step // 2 < up < step, "UP (highest) after passing, before the next contact"
+    heel = np.array(act["joints"]["l_ankle"])[:, 1]
+    assert heel[up] > heel[: step // 2].min() + 0.01, "heel lifts at UP (push-off)"
+    gap = np.array(act["joints"]["l_ankle"])[:, 0] - np.array(act["joints"]["r_ankle"])[:, 0]
+    passing = int(np.argmin(np.abs(gap[:step])))
+    assert int(H[:step].argmin()) < passing < up, "order: contact, down, passing, up"
     assert knee.max() < 70, "swing knee bends less than 70 degrees"
 
     _, slide = Walker("protagonist").poses(3.0)

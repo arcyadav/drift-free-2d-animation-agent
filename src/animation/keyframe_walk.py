@@ -6,12 +6,16 @@ the classic 2D walk (contact → down → passing → up) with style parameters,
 same motion.json format, so the Retargeter / foot lock / renderer are unchanged.
 
 Built from the feet up (all lengths in leg lengths, x = forward, y = up):
+  * body height is keyed like a 2D animator does, per step:
+        contact (heel touches, middle) -> down (foot settles, LOWEST) ->
+        passing (swing leg passes the support leg, knee bent; higher) ->
+        up (heel lifts, push-off, HIGHEST) -> next contact
+    and interpolated with a smooth periodic spline
   * stance (60% of the cycle): the ankle slides back under the body at walking speed —
-    i.e. it stands still on the ground in the world; the heel lifts in the last part
+    i.e. it stands still on the ground in the world. Where the body is higher than a
+    flat foot can reach (up), the heel lifts by exactly what is needed: the push-off
   * swing: the ankle arcs forward (smoothstep), lifted LIFT at mid-swing
-  * hip height = what the stance leg(s) can reach with the stance knee curve: the knee
-    gives just after heel strike as the foot takes the weight → the body sinks ('down'),
-    then rises over the straightening leg ('up'); thigh + shin from 2-bone IK
+  * thigh + shin from 2-bone IK (knee forward): the knee gives at 'down' by itself
   * upper body follows: chest tips against the hips, head nods slightly after each down
   * arms swing opposite the legs, elbows almost straight (more bend when forward)
 
@@ -31,9 +35,11 @@ STYLE = {
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.09,          # swing-foot lift at mid-swing
     "knee_soft": 6.0,      # deg: stance knee never locks straight
-    "load_flex": 12.0,     # deg: knee gives as the foot takes the weight ...
-    "load_peak": 0.15,     # ... deepest at this share of the stance, straight again by 0.45
-    "settle": 0.035,       # leg lengths the body sinks just after heel strike ('down' pose)
+    # body height keys per step (share of the step, leg lengths relative to contact)
+    "down_at": 0.12, "settle": 0.02,       # foot settles: body LOWEST (slightly)
+    "pass_at": 0.58, "pass_rise": 0.046,   # swing leg passes the support leg (nearly straight)
+    "up_at": 0.84, "up_rise": 0.062,       # heel lifts, push-off: body HIGHEST
+    "heel_min": 0.08,      # heel lift at toe-off (leg lengths)
     "ankle_h": 0.20,       # ankle above the ground (her sneaker is tall)
     "arm_swing": 13.0,     # deg each way
     "elbow": (6.0, 16.0),  # elbow bend (back, forward)
@@ -42,7 +48,6 @@ STYLE = {
     "head_nod": 3.0,       # deg: head dips just after the body sinks (follow-through)
     "hip_tilt": 3.0,       # deg: pelvis tips forward/back once per step (peaks at push-off)
     "heel_strike": 12.0,   # toe up at contact, deg
-    "push_off": 22.0,      # toe down at the end of stance, deg
 }
 FPS = 24
 THIGH = SHIN = 0.5
@@ -53,15 +58,20 @@ def smooth(x):
     return x * x * (3 - 2 * x)
 
 
-def stance_flex(q, st):
-    """stance knee flexion (deg) over the stance share q in [0, 1): soft at heel strike,
-    gives to load_flex at load_peak (weight acceptance), soft again by mid-stance."""
-    soft, load, pk = st["knee_soft"], st["load_flex"], st["load_peak"]
-    if q < pk:
-        return soft + (load - soft) * smooth(q / pk)
-    if q < 0.45:
-        return load + (soft - load) * smooth((q - pk) / (0.45 - pk))
-    return soft
+BALL = 0.22                # ankle -> ball of the foot (the foot pivots here at push-off)
+
+
+def height_curve(st):
+    """body height per step share u in [0, 1): shape-preserving (PCHIP) curve through the
+    key poses, repeated on both sides so it loops — it never overshoots a key (a cubic
+    spline dipped below 'down' and bent the knee far too much)."""
+    from scipy.interpolate import PchipInterpolator
+    ku = [0.0, st["down_at"], st["pass_at"], st["up_at"]]
+    kh = [0.0, -st["settle"], st["pass_rise"], st["up_rise"]]
+    u = [k + o for o in (-1, 0, 1) for k in ku] + [2.0]
+    h = kh * 3 + [0.0]
+    f = PchipInterpolator(u, h)
+    return lambda x: f(np.asarray(x) % 1.0)
 
 
 def ankle_body(p, st):
@@ -70,11 +80,10 @@ def ankle_body(p, st):
     if p < sf:
         q = p / sf
         x = s / 2 - s * q
-        heel = smooth((q - 0.75) / 0.25) * 0.05                # heel rises before toe-off
-        return np.array([x, st["ankle_h"] + heel]), True
+        return np.array([x, st["ankle_h"]]), True              # heel lift added in build()
     q = (p - sf) / (1 - sf)
     x = -s / 2 + s * smooth(q)
-    y = st["ankle_h"] + 0.05 * (1 - q) + st["lift"] * np.sin(np.pi * q)
+    y = st["ankle_h"] + st["heel_min"] * (1 - q) + st["lift"] * np.sin(np.pi * q)
     return np.array([x, y]), False
 
 
@@ -103,25 +112,28 @@ def build(st=STYLE):
     speed = st["step"] / (st["stance"] * st["cycle_s"])          # stance foot stands still
     stride = speed * st["cycle_s"]
     phase = {"l": 0.0, "r": 0.5}
-    # hip height: lowest of what each planted leg can reach with its knee bent by the
-    # stance knee curve — sinks just after heel strike (weight acceptance), rises after
-    H = np.zeros(F)
-    for f in range(F):
-        h = []
-        for s in "lr":
-            p = (f / F + phase[s]) % 1
-            a, planted = ankle_body(p, st)
-            if planted:
-                d = (THIGH + SHIN) * np.cos(np.radians(stance_flex(p / st["stance"], st)) / 2)
-                h.append(a[1] + np.sqrt(max(d ** 2 - a[0] ** 2, 0.3)))
-        H[f] = min(h)
-        # 'down': the body sinks just after the heel lands, as the leg takes the weight
-        for s in "lr":
-            q = ((f / F + phase[s]) % 1) / st["stance"]
-            if q < 0.45:
-                bump = smooth(q / st["load_peak"]) if q < st["load_peak"]                     else 1 - smooth((q - st["load_peak"]) / (0.45 - st["load_peak"]))
-                H[f] -= st["settle"] * bump
-    # (no smoothing: averaging lowers the peak and bends the planted knee a lot)
+    phase_frames = {s: (1 - ph) % 1 * F for s, ph in phase.items()}    # frame of heel strike
+    # body height: keyed per step (contact -> down -> passing -> up); contact height =
+    # what the front leg reaches with a soft knee when it lands
+    d_soft = (THIGH + SHIN) * np.cos(np.radians(st["knee_soft"]) / 2)
+    Hc = st["ankle_h"] + np.sqrt(d_soft ** 2 - (st["step"] / 2) ** 2)
+    curve = height_curve(st)
+    H = np.array([Hc + float(curve((f / F % 0.5) / 0.5)) for f in range(F)])
+    # heel lift per stance frame: what the body height needs (push-off) and at least a ramp
+    # to heel_min by toe-off; once lifted it only rises until the toe leaves the ground
+    lift = {s: np.zeros(F) for s in "lr"}
+    n_st = int(round(st["stance"] * F))
+    for s in "lr":
+        start = int(round(phase_frames[s]))
+        run_max = 0.0
+        for k in range(n_st + 1):
+            f = (start + k) % F
+            q = k / (st["stance"] * F)
+            x = st["step"] / 2 - st["step"] * q
+            flat = st["ankle_h"] + np.sqrt(max(d_soft ** 2 - x ** 2, 0.0))
+            need = max(0.0, H[f] - flat, st["heel_min"] * smooth((q - 0.5) / 0.5))
+            run_max = max(run_max, need) if q > 0.4 else need
+            lift[s][f] = run_max
 
     J = {k: np.zeros((F, 2)) for k in ("pelvis", "chest", "neck", "head_top", "l_hip", "r_hip",
                                        "l_knee", "r_knee", "l_ankle", "r_ankle", "l_toe", "r_toe",
@@ -138,24 +150,27 @@ def build(st=STYLE):
         J["chest"][f] = root + 0.55 * np.array([np.sin(lean), np.cos(lean)])
         J["neck"][f] = root + 0.75 * np.array([np.sin(lean), np.cos(lean)])
         # head nod: dips forward just after each 'down' (lags the body by ~0.05 of a cycle)
-        nod = np.radians(st["head_nod"] * max(0.0, np.cos(2 * np.pi * 2 * (f / F - st["load_peak"] * st["stance"] - 0.05))))
+        nod = np.radians(st["head_nod"] * max(0.0, np.cos(2 * np.pi * 2 * (f / F - st["down_at"] / 2 - 0.05))))
         J["head_top"][f] = J["neck"][f] + 0.35 * np.array([np.sin(nod + 0.057), np.cos(nod + 0.057)])
         for s in "lr":
             p = (f / F + phase[s]) % 1
             a, planted = ankle_body(p, st)
+            lf = lift[s][f] if planted else 0.0
+            if planted:
+                a = a + np.array([0.0, lf])                     # push-off: heel up
             hip = root                                           # H is the hip height
             knee, ank = ik(hip, root * [1, 0] + a)
             J[f"{s}_hip"][f], J[f"{s}_knee"][f], J[f"{s}_ankle"][f] = hip, knee, ank
-            # foot pitch: toe up at heel strike, flat, toe down at push-off, swing in between
-            if p < 0.08:
+            # foot pitch: toe up at heel strike, flat, then the heel lift turns the foot about
+            # the ball (push-off), swing carries it round to the next heel strike
+            toe_off = -np.degrees(np.arcsin(min(st["heel_min"] / BALL, 0.95)))
+            if planted and p < 0.08:
                 pitch = st["heel_strike"] * (1 - smooth(p / 0.08))
-            elif p < st["stance"] * 0.75:
-                pitch = 0.0
-            elif p < st["stance"]:
-                pitch = -st["push_off"] * smooth((p - st["stance"] * 0.75) / (st["stance"] * 0.25))
+            elif planted:
+                pitch = -np.degrees(np.arcsin(min(lf / BALL, 0.95)))
             else:
                 q = (p - st["stance"]) / (1 - st["stance"])
-                pitch = -st["push_off"] + (st["push_off"] + st["heel_strike"]) * smooth(q)
+                pitch = toe_off + (st["heel_strike"] - toe_off) * smooth(q)
             fa = np.radians(-30 + pitch)                       # -30 = flat foot (ankle → toe base)
             J[f"{s}_toe"][f] = ank + 0.25 * np.array([np.cos(fa), np.sin(fa)])
             contacts[s].append(bool(planted))
