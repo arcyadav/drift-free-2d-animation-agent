@@ -1,0 +1,395 @@
+{
+  "view": "side_left",
+  "canvas": [
+    1024,
+    1536
+  ],
+  "info": {
+    "collar_y": 369,
+    "crotch_y": 811.1,
+    "hem_y": 592,
+    "sleeve_line": [
+      -0.0897,
+      539.8
+    ],
+    "sleeve_seam_rows": [
+      123,
+      126
+    ],
+    "throat": [
+      488.0,
+      340.0
+    ],
+    "jaw_back": [
+      553.0,
+      314.5
+    ],
+    "scrunchie": [
+      577.6,
+      310.1
+    ],
+    "neck_top": [
+      520.5,
+      327.2
+    ]
+  },
+  "issues": [],
+  "layer_order": [
+    "foot_r",
+    "shin_r",
+    "thigh_r",
+    "upper_arm_r",
+    "forearm_r",
+    "hand_r",
+    "pelvis",
+    "foot_l",
+    "shin_l",
+    "thigh_l",
+    "neck",
+    "torso",
+    "head",
+    "head_hair",
+    "upper_arm_l",
+    "forearm_l",
+    "hand_l",
+    "ponytail"
+  ],
+  "parts": {
+    "foot_r": {
+      "id": 1,
+      "parent": "shin_r",
+      "pivot_joint": "r_ankle",
+      "pivot": [
+        530.4,
+        1357.3
+      ],
+      "px": 11006,
+      "pieces": 10,
+      "main_piece": 1.0,
+      "bbox": [
+        370,
+        1366,
+        612,
+        1474
+      ],
+      "copy_of": "foot_l",
+      "shade": 0.78
+    },
+    "shin_r": {
+      "id": 2,
+      "parent": "thigh_r",
+      "pivot_joint": "r_knee",
+      "pivot": [
+        508.2,
+        1071.6
+      ],
+      "px": 55621,
+      "pieces": 14,
+      "main_piece": 1.0,
+      "bbox": [
+        436,
+        1069,
+        610,
+        1435
+      ],
+      "copy_of": "shin_l",
+      "shade": 0.78
+    },
+    "thigh_r": {
+      "id": 3,
+      "parent": "pelvis",
+      "pivot_joint": "r_hip",
+      "pivot": [
+        508.1,
+        782.2
+      ],
+      "px": 34739,
+      "pieces": 3,
+      "main_piece": 1.0,
+      "bbox": [
+        429,
+        808,
+        602,
+        1078
+      ],
+      "copy_of": "thigh_l",
+      "shade": 0.78
+    },
+    "upper_arm_r": {
+      "id": 4,
+      "parent": "torso",
+      "pivot_joint": "r_shoulder",
+      "pivot": [
+        511.9,
+        409.3
+      ],
+      "px": 21316,
+      "pieces": 4,
+      "main_piece": 1.0,
+      "bbox": [
+        487,
+        363,
+        597,
+        625
+      ],
+      "copy_of": "upper_arm_l",
+      "shade": 0.78
+    },
+    "forearm_r": {
+      "id": 5,
+      "parent": "upper_arm_r",
+      "pivot_joint": "r_elbow",
+      "pivot": [
+        513.7,
+        622.7
+      ],
+      "px": 8222,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        482,
+        619,
+        563,
+        792
+      ],
+      "copy_of": "forearm_l",
+      "shade": 0.78
+    },
+    "hand_r": {
+      "id": 6,
+      "parent": "forearm_r",
+      "pivot_joint": "r_wrist",
+      "pivot": [
+        480.4,
+        785.9
+      ],
+      "px": 6322,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        450,
+        783,
+        521,
+        908
+      ],
+      "copy_of": "hand_l",
+      "shade": 0.78
+    },
+    "pelvis": {
+      "id": 7,
+      "parent": null,
+      "pivot_joint": "pelvis",
+      "pivot": [
+        508.1,
+        782.2
+      ],
+      "px": 23318,
+      "pieces": 13,
+      "main_piece": 1.0,
+      "bbox": [
+        427,
+        609,
+        614,
+        812
+      ]
+    },
+    "foot_l": {
+      "id": 8,
+      "parent": "shin_l",
+      "pivot_joint": "l_ankle",
+      "pivot": [
+        530.4,
+        1357.3
+      ],
+      "px": 11006,
+      "pieces": 10,
+      "main_piece": 1.0,
+      "bbox": [
+        370,
+        1366,
+        612,
+        1474
+      ]
+    },
+    "shin_l": {
+      "id": 9,
+      "parent": "thigh_l",
+      "pivot_joint": "l_knee",
+      "pivot": [
+        508.2,
+        1071.6
+      ],
+      "px": 55621,
+      "pieces": 14,
+      "main_piece": 1.0,
+      "bbox": [
+        436,
+        1069,
+        610,
+        1435
+      ]
+    },
+    "thigh_l": {
+      "id": 10,
+      "parent": "pelvis",
+      "pivot_joint": "l_hip",
+      "pivot": [
+        508.1,
+        782.2
+      ],
+      "px": 34739,
+      "pieces": 3,
+      "main_piece": 1.0,
+      "bbox": [
+        429,
+        808,
+        602,
+        1078
+      ]
+    },
+    "neck": {
+      "id": 11,
+      "parent": "torso",
+      "pivot_joint": "neck",
+      "pivot": [
+        511.9,
+        409.3
+      ],
+      "px": 2696,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        487,
+        322,
+        552,
+        392
+      ]
+    },
+    "torso": {
+      "id": 12,
+      "parent": null,
+      "pivot_joint": "pelvis",
+      "pivot": [
+        508.1,
+        782.2
+      ],
+      "px": 14902,
+      "pieces": 6,
+      "main_piece": 1.0,
+      "bbox": [
+        416,
+        369,
+        513,
+        629
+      ]
+    },
+    "head": {
+      "id": 13,
+      "parent": "neck",
+      "pivot_joint": "neck_top",
+      "pivot": [
+        520.5,
+        327.2
+      ],
+      "px": 11852,
+      "pieces": 2,
+      "main_piece": 1.0,
+      "bbox": [
+        411,
+        184,
+        546,
+        345
+      ]
+    },
+    "head_hair": {
+      "id": 14,
+      "parent": "head",
+      "pivot_joint": "neck_top",
+      "pivot": [
+        520.5,
+        327.2
+      ],
+      "px": 24311,
+      "pieces": 16,
+      "main_piece": 1.0,
+      "bbox": [
+        402,
+        129,
+        625,
+        341
+      ]
+    },
+    "upper_arm_l": {
+      "id": 15,
+      "parent": "torso",
+      "pivot_joint": "l_shoulder",
+      "pivot": [
+        511.9,
+        409.3
+      ],
+      "px": 21316,
+      "pieces": 4,
+      "main_piece": 1.0,
+      "bbox": [
+        487,
+        363,
+        597,
+        625
+      ]
+    },
+    "forearm_l": {
+      "id": 16,
+      "parent": "upper_arm_l",
+      "pivot_joint": "l_elbow",
+      "pivot": [
+        513.7,
+        622.7
+      ],
+      "px": 8222,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        482,
+        619,
+        563,
+        792
+      ]
+    },
+    "hand_l": {
+      "id": 17,
+      "parent": "forearm_l",
+      "pivot_joint": "l_wrist",
+      "pivot": [
+        480.4,
+        785.9
+      ],
+      "px": 6322,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        450,
+        783,
+        521,
+        908
+      ]
+    },
+    "ponytail": {
+      "id": 18,
+      "parent": "head",
+      "pivot_joint": "scrunchie",
+      "pivot": [
+        577.6,
+        310.1
+      ],
+      "px": 15975,
+      "pieces": 8,
+      "main_piece": 0.999,
+      "bbox": [
+        548,
+        288,
+        679,
+        471
+      ]
+    }
+  }
+}

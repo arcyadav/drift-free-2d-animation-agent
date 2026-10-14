@@ -1,0 +1,127 @@
+{
+  "view": "side_left",
+  "added_px": {
+    "pelvis": 13874,
+    "foot_l": 6260,
+    "shin_l": 4744,
+    "thigh_l": 15369,
+    "neck": 4536,
+    "torso": 20812,
+    "head": 6074,
+    "head_hair": 2541,
+    "upper_arm_l": 3818,
+    "forearm_l": 4759,
+    "hand_l": 1438,
+    "ponytail": 0
+  },
+  "underlap": [
+    [
+      "torso",
+      [
+        "upper_arm_l",
+        "forearm_l"
+      ],
+      140
+    ],
+    [
+      "torso",
+      [
+        "ponytail",
+        "head_hair"
+      ],
+      15
+    ],
+    [
+      "pelvis",
+      [
+        "forearm_l",
+        "hand_l",
+        "torso"
+      ],
+      110
+    ],
+    [
+      "pelvis",
+      [
+        "thigh_l"
+      ],
+      45
+    ],
+    [
+      "thigh_l",
+      [
+        "hand_l",
+        "forearm_l"
+      ],
+      80
+    ],
+    [
+      "shin_l",
+      [
+        "thigh_l"
+      ],
+      35
+    ],
+    [
+      "foot_l",
+      [
+        "shin_l"
+      ],
+      30
+    ],
+    [
+      "neck",
+      [
+        "head",
+        "head_hair",
+        "ponytail"
+      ],
+      30
+    ],
+    [
+      "head",
+      [
+        "head_hair",
+        "ponytail"
+      ],
+      18
+    ],
+    [
+      "head_hair",
+      [
+        "ponytail"
+      ],
+      25
+    ]
+  ],
+  "caps": [
+    [
+      "upper_arm_l",
+      "upper_arm_l"
+    ],
+    [
+      "forearm_l",
+      "forearm_l"
+    ],
+    [
+      "upper_arm_l",
+      "forearm_l"
+    ],
+    [
+      "hand_l",
+      "hand_l"
+    ],
+    [
+      "forearm_l",
+      "hand_l"
+    ],
+    [
+      "thigh_l",
+      "thigh_l"
+    ],
+    [
+      "thigh_l",
+      "shin_l"
+    ]
+  ]
+}

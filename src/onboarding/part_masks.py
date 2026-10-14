@@ -68,6 +68,10 @@ JAW_L = 50             # chin outline is mid-dark (L* ≈ 32), neck shadow ≈ 6
 STRAY_FRAC = 0.10      # small pieces (< this share of a part) ...
 STRAY_GAP = 6          # ... farther than this from its main piece go to their neighbour
 MAIN_PIECE_FRAC = 0.85  # largest connected piece should hold ≥85% of a part
+OUTLINE_DE = 15        # outline pixel: colour this far (ΔE) from its part's median, and darker
+OUTLINE_REACH = 2      # ... and within this many px of a part drawn in front → goes to that part
+BLEND_DE = 6           # anti-aliased blend next to a front part: smaller colour difference ...
+BLEND_REACH = 2        # ... within this many px
 
 
 def load(char_dir):
@@ -152,8 +156,7 @@ def split_parts(rgba, kp, pal):
     ear_y = (kp["l_ear"][1] + kp["r_ear"][1]) / 2
     strand_r = hair & free & (xx > kp["nose"][0]) & (yy > ear_y)
     # scrunchie (dark red tie) = ponytail root / pivot
-    tie = hair & (lab[..., 0] < DARK_L) & (lab[..., 1] > TIE_A) & (lab[..., 1] > lab[..., 2])         & (xx < kp["nose"][0]) & (yy > ear_y)
-    tie_xy = [round(float(xx[tie].mean()), 1), round(float(yy[tie].mean()), 1)] if tie.sum() > 20 else None
+    tie_xy = scrunchie(hair, lab, (xx < kp["nose"][0]) & (yy > ear_y))
     lab_map[hair & to_tail] = PART_ID["ponytail"]
     lab_map[hair & ~to_tail] = PART_ID["head_hair"]
     lab_map[strand_r] = PART_ID["strand_r"]
@@ -172,7 +175,7 @@ def split_parts(rgba, kp, pal):
     body = fg & (lab_map == 0) & ~(head_zone & (yy < collar_y))
     # jeans zone: stitching, pockets and fly lines inside the denim count as jeans
     jeans = body & (cls == ci["jeans"])
-    jeans = ndi.binary_fill_holes(ndi.binary_closing(jeans, disk(5))) & body
+    jeans = ndi.binary_fill_holes(ndi.binary_closing(jeans, disk(5))) & body & (cls != ci["skin"])
     ankle_y = min(kp["l_ankle"][1], kp["r_ankle"][1])
     shoes = body & ~jeans & (yy > ankle_y)                       # white sneakers ≈ tee colour
     upper = body & ~jeans & ~shoes                               # tee, skin, outlines
@@ -203,12 +206,63 @@ def split_parts(rgba, kp, pal):
     lab_map[shoes & (leg_side == l_sign)] = PART_ID["foot_l"]
     lab_map[shoes & (leg_side != l_sign)] = PART_ID["foot_r"]
 
-    # ---------- outlines, leftovers and stray pieces → nearest part ----------
+    cleanup(lab_map, fg, rgba[..., 3] > 0, PART_ID.values())
+    outlines_to_front(lab_map, lab, [PART_ID[n] for n, _ in PARTS])
+    info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1),
+            "jaw_y": [int(jaw_y.min()), int(jaw_y.max())], "face_right": int(face_right),
+            "scrunchie": tie_xy, "neck_top": [round(float(neck_cols.mean()), 1), round(float(np.median(jaw_y)), 1)]}
+    return lab_map, info
+
+
+def scrunchie(hair, lab, where):
+    """dark red hair tie = ponytail root / pivot (None if not found)."""
+    tie = hair & where & (lab[..., 0] < DARK_L) & (lab[..., 1] > TIE_A) & (lab[..., 1] > lab[..., 2])
+    if tie.sum() <= 20:
+        return None
+    ys, xs = np.where(tie)
+    return [round(float(xs.mean()), 1), round(float(ys.mean()), 1)]
+
+
+def outlines_to_front(lab_map, lab, order_ids):
+    """dark outline pixels (ΔE > 15, darker, within 2 px), then the 1-px anti-aliased blend
+    (ΔE > 6, lighter or darker: a skin edge over denim blends to tan, not dark)."""
+    n = _to_front(lab_map, lab, order_ids, OUTLINE_DE, OUTLINE_REACH, darker=True)
+    return n + _to_front(lab_map, lab, order_ids, BLEND_DE, BLEND_REACH, darker=False)
+
+
+def _to_front(lab_map, lab, order_ids, min_de, reach, darker):
+    """An outline between two parts belongs to the part drawn in front (the one it outlines):
+    otherwise the arm's outline stays painted on the jeans when the arm swings away."""
+    rank = np.zeros(256, np.int32)
+    for r, pid in enumerate(order_ids, 1):
+        rank[pid] = r
+    rmap = rank[lab_map]
+    med = np.zeros((256, 3))
+    for pid in order_ids:
+        m = lab_map == pid
+        if m.any():
+            med[pid] = np.median(lab[m], 0)
+    # outline = far from its part's colour (brown arm outline on blue denim differs in hue,
+    # not much in lightness) and darker than it
+    de = np.linalg.norm(lab - med[lab_map], axis=-1)
+    line = (lab_map > 0) & (de > min_de)
+    if darker:
+        line &= lab[..., 0] < med[lab_map][..., 0]
+    front_r = ndi.maximum_filter(rmap, size=2 * reach + 1)
+    move = line & (front_r > rmap)
+    id_of_rank = np.zeros(len(order_ids) + 1, np.int32)
+    id_of_rank[1:] = order_ids
+    lab_map[move] = id_of_rank[front_r[move]]
+    return int(move.sum())
+
+
+def cleanup(lab_map, fg, soft, ids):
+    """outlines, leftovers and stray pieces → nearest part; then the soft rim."""
     lab_map[~fg] = 0
     for _ in range(2):
         fill_nearest(lab_map, fg)
-        for name, _ in PARTS:
-            m = lab_map == PART_ID[name]
+        for pid in ids:
+            m = lab_map == pid
             cl, n = ndi.label(m)
             if n < 2:
                 continue
@@ -219,11 +273,7 @@ def split_parts(rgba, kp, pal):
                 if not (piece & near_main).any():                # far from the part → stray
                     lab_map[piece] = 0
     fill_nearest(lab_map, fg)
-    fill_nearest(lab_map, rgba[..., 3] > 0)                      # soft anti-aliased rim too
-    info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1),
-            "jaw_y": [int(jaw_y.min()), int(jaw_y.max())], "face_right": int(face_right),
-            "scrunchie": tie_xy, "neck_top": [round(float(neck_cols.mean()), 1), round(float(np.median(jaw_y)), 1)]}
-    return lab_map, info
+    fill_nearest(lab_map, soft)                                  # soft anti-aliased rim too
 
 
 def body_before_gap(fg, a, b, step, y0, y1):
@@ -265,17 +315,21 @@ def jaw_line(L, face, cols, y0, collar_y):
     return ndi.median_filter(out, 9)
 
 
-def validate(lab_map):
+def validate(lab_map, parts=PARTS, part_id=PART_ID):
     issues, stats = [], {}
-    for name, _ in PARTS:
-        m = lab_map == PART_ID[name]
+    for name, _ in parts:
+        m = lab_map == part_id[name]
         px = int(m.sum())
         if px < MIN_PART_PX:
             issues.append(f"{name}: missing / too small ({px}px)")
             stats[name] = {"px": px}
             continue
         cl, n = ndi.label(m)
-        main = ndi.sum(m, cl, range(1, n + 1)).max() / px
+        # pieces split only by a part drawn in front of it (an arm across the hip) are fine
+        names = [p for p, _ in parts]
+        front = np.isin(lab_map, [part_id[p] for p in names[names.index(name) + 1:]])
+        jl, _ = ndi.label(m | front)
+        main = max(m[jl == k].sum() for k in np.unique(jl[m])) / px
         if main < MAIN_PIECE_FRAC:
             issues.append(f"{name}: broken into pieces (main piece {main:.0%})")
         ys, xs = np.where(m)
@@ -284,38 +338,48 @@ def validate(lab_map):
     return issues, stats
 
 
-def save(char_dir, rgba, lab_map, kp, info, issues, stats):
-    out = char_dir / "parts" / "front"
-    out.mkdir(parents=True, exist_ok=True)
-    save_image(lab_map, out / "labels.png")
-    for name, _ in PARTS:
-        cut = rgba.copy()
-        cut[..., 3] = np.where(lab_map == PART_ID[name], rgba[..., 3], 0)
-        save_image(cut, out / f"{name}.png")
+def head_pivots(kp, info, lab_map, tail_id):
     pivots = dict(kp)
     pivots["neck_top"] = np.array(info["neck_top"])              # head turns here, not at the shoulders
-    tail = lab_map == PART_ID["ponytail"]
+    tail = lab_map == tail_id
     if info["scrunchie"]:
         pivots["scrunchie"] = np.array(info["scrunchie"])
     elif tail.any():                     # no tie found: ponytail root = its highest point
         ys, xs = np.where(tail)
         top = ys < ys.min() + 15
         pivots["scrunchie"] = np.array([xs[top].mean(), ys[top].mean()])
-    meta = {"view": "front", "canvas": list(rgba.shape[1::-1]), "info": info, "issues": issues,
-            "layer_order": [n for n, _ in PARTS],
-            "parts": {n: {"id": PART_ID[n], "parent": PARENT[n], "pivot_joint": j,
+    return pivots
+
+
+def save(char_dir, view, rgba, lab_map, pivots, info, issues, stats, parts, parent, part_id, colours,
+         cutouts=None):
+    """cutouts: optional {part: RGBA} for parts that are not a plain cut of the art
+    (side view: far limbs = darkened copies of the near ones)."""
+    out = char_dir / "parts" / view
+    out.mkdir(parents=True, exist_ok=True)
+    save_image(lab_map, out / "labels.png")
+    for name, _ in parts:
+        if cutouts and name in cutouts:
+            cut = cutouts[name]
+        else:
+            cut = rgba.copy()
+            cut[..., 3] = np.where(lab_map == part_id[name], rgba[..., 3], 0)
+        save_image(cut, out / f"{name}.png")
+    meta = {"view": view, "canvas": list(rgba.shape[1::-1]), "info": info, "issues": issues,
+            "layer_order": [n for n, _ in parts],
+            "parts": {n: {"id": part_id[n], "parent": parent[n], "pivot_joint": j,
                           "pivot": [round(float(v), 1) for v in pivots[j]], **stats.get(n, {})}
-                      for n, j in PARTS}}
+                      for n, j in parts}}
     save_text(json.dumps(meta, indent=2), out / "parts.json")
 
     # overlay: part colours at 55% over the art
     over = rgba[..., :3].astype(float)
     colour = np.zeros_like(over)
-    for name, c in COLOURS.items():
-        colour[lab_map == PART_ID[name]] = c
+    for name, c in colours.items():
+        colour[lab_map == part_id[name]] = c
     m = (lab_map > 0)[..., None]
     over = np.where(m, 0.45 * over + 0.55 * colour, 255)
-    save_image(over.astype(np.uint8), char_dir / "work" / "parts_front.png")
+    save_image(over.astype(np.uint8), char_dir / "work" / f"parts_{view}.png")
 
 
 def run(character):
@@ -323,7 +387,8 @@ def run(character):
     rgba, kp, pal = load(char_dir)
     lab_map, info = split_parts(rgba, kp, pal)
     issues, stats = validate(lab_map)
-    save(char_dir, rgba, lab_map, kp, info, issues, stats)
+    save(char_dir, "front", rgba, lab_map, head_pivots(kp, info, lab_map, PART_ID["ponytail"]),
+         info, issues, stats, PARTS, PARENT, PART_ID, COLOURS)
     print("info:", info)
     for n, _ in PARTS:
         s = stats[n]

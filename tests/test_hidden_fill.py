@@ -12,13 +12,13 @@ from src.onboarding import hidden_fill
 CHAR = config.CHARACTERS / "protagonist"
 
 
-def test_fill():
-    hidden_fill.run("protagonist")
-    meta, filled = rigid_pose.load_rig(CHAR, "front", "filled")
-    _, raw = rigid_pose.load_rig(CHAR, "front")
+def test_fill(view="front", must_fill=("forearm_l", "torso", "neck")):
+    hidden_fill.run("protagonist", view)
+    meta, filled = rigid_pose.load_rig(CHAR, view, "filled")
+    _, raw = rigid_pose.load_rig(CHAR, view)
 
     # 1. rest pose with filled parts == original art (fills are hidden behind front parts)
-    art = np.asarray(Image.open(CHAR / "views/front.png").convert("RGBA")).astype(float)
+    art = np.asarray(Image.open(CHAR / f"views/{view}.png").convert("RGBA")).astype(float)
     a = art[..., 3:] / 255
     ref = art[..., :3] * a + 255 * (1 - a)
     diff = np.abs(rigid_pose.render(meta, filled, {}).astype(float) - ref).max(-1)
@@ -30,10 +30,11 @@ def test_fill():
         assert (filled[n][keep] == raw[n][keep]).all(), f"{n}: original pixels altered"
 
     # 3. the parts that open gaps when posed (elbow, torso side, neck) really got filled
-    for n in ("forearm_l", "torso", "neck"):
+    for n in must_fill:
         assert (filled[n][..., 3] > 0).sum() > (raw[n][..., 3] > 0).sum(), f"{n}: nothing filled"
-    print("hidden fill: all checks passed")
+    print(f"hidden fill ({view}): all checks passed")
 
 
 if __name__ == "__main__":
     test_fill()
+    test_fill("side_left", ("torso", "pelvis", "thigh_l", "shin_l"))

@@ -42,5 +42,30 @@ def test_front_parts():
     print("part masks: all checks passed")
 
 
+def test_side_parts():
+    from src.onboarding import part_masks_side as pms
+    assert pms.run("protagonist") == []
+    lab = np.asarray(Image.open(CHAR / "parts/side_left/labels.png"))
+    alpha = np.asarray(Image.open(CHAR / "views/side_left.png").convert("RGBA"))[..., 3] > 0
+    assert ((lab > 0) == alpha).all()
+
+    def c(n):
+        ys, xs = np.where(lab == pms.PART_ID[n])
+        return xs.mean(), ys.mean()
+    assert c("head")[1] < c("neck")[1] < c("torso")[1] < c("pelvis")[1] < c("thigh_l")[1] \
+        < c("shin_l")[1] < c("foot_l")[1]
+    assert c("upper_arm_l")[1] < c("forearm_l")[1] < c("hand_l")[1]
+    assert c("ponytail")[0] > c("head")[0], "she faces left: ponytail hangs behind (right)"
+    for limb in pms.LIMBS:                         # far limbs: darker copies of the near ones
+        far = np.asarray(Image.open(CHAR / f"parts/side_left/{limb}_r.png"))
+        near = np.asarray(Image.open(CHAR / f"parts/side_left/{limb}_l.png"))
+        assert not ((far[..., 3] > 0) & (near[..., 3] == 0)).any(), "far copy must stay inside the near limb"
+        on = far[..., 3] > 0
+        assert on.sum() > 0.5 * (near[..., 3] > 0).sum()   # 2-px shrink eats thin fingers
+        assert far[on][:, :3].mean() < near[on][:, :3].mean()
+    print("side part masks: all checks passed")
+
+
 if __name__ == "__main__":
     test_front_parts()
+    test_side_parts()

@@ -32,3 +32,6 @@ desktop.ini
 .DS_Store
 .vscode/
 .idea/
+
+# personal recordings (your face) — keep local, never on GitHub
+assets/motion/video/
