@@ -33,6 +33,7 @@ GROUND = (222, 214, 200)
 SPRING_K, SPRING_D = 120.0, 9.0       # ponytail spring stiffness / damping (per s²)
 SPRING_GAIN = 0.06           # deg per px/s² of head vertical acceleration
 PONY_TRAIL = 4.0             # deg: ponytail trails back while walking
+BENDS = [("thigh_l", "shin_l", 110), ("thigh_r", "shin_r", 110)]   # soft knees (band px)
 HEEL_LIFT_PX = 8             # planted ankle rising more than this = heel-off → release the lock
 
 
@@ -145,7 +146,7 @@ class Walker:
             canvas = self.background(cam_x, body_x)
             root = np.array([[1, 0, off[0]], [0, 1, off[1]], [0, 0, 1]])
             img = rigid_pose.render(self.meta, self.imgs, local, root=root, camera=cam,
-                                    size=(OUT_W, OUT_H), canvas=canvas)
+                                    size=(OUT_W, OUT_H), canvas=canvas, bends=BENDS)
             writer.append_data(img)
         writer.close()
         rep = {"frames": len(frames), "fps": FPS, "on_twos": True, "seconds": seconds,

@@ -92,10 +92,88 @@ def _sprite(img, scale=1.0):
 _SPRITES = {}
 
 
-def render(meta, imgs, angles, bg=(255, 255, 255), root=None, camera=None, size=None, canvas=None):
+def _merged(meta, imgs, a, b, scale):
+    """parent a + child b as one premultiplied sprite (layer order kept), pre-scaled."""
+    key = ("merge", id(imgs[a]), id(imgs[b]), round(float(scale), 3))
+    hit = _SPRITES.get(key)
+    if hit is not None and hit[0] is imgs[a] and hit[1] is imgs[b]:
+        return hit[2]
+    order = meta["layer_order"]
+    first, second = (a, b) if order.index(a) < order.index(b) else (b, a)
+    alpha = (imgs[a][..., 3] > 0) | (imgs[b][..., 3] > 0)
+    ys, xs = np.where(alpha)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    out = np.zeros((y1 - y0, x1 - x0, 4), np.float32)
+    for n in (first, second):
+        im = imgs[n][y0:y1, x0:x1].astype(np.float32)
+        al = im[..., 3:4] / 255
+        out[..., :3] = out[..., :3] * (1 - al) + im[..., :3] * al
+        out[..., 3:4] = out[..., 3:4] * (1 - al) + im[..., 3:4]
+    s = 1.0
+    if scale < 0.95:
+        h, w = out.shape[:2]
+        nw, nh = max(1, int(round(w * scale))), max(1, int(round(h * scale)))
+        out = cv2.resize(out, (nw, nh), interpolation=cv2.INTER_AREA)
+        s = (nw / w + nh / h) / 2
+    sp = (out, int(x0), int(y0), s)
+    _SPRITES[key] = (imgs[a], imgs[b], sp)
+    return sp
+
+
+def _draw_bent(out, meta, imgs, a, b, band, Ta, Tb, cam, cam_scale, W, H):
+    """Soft joint: one image for parent a + child b; each source pixel moves with a blend
+    of both bones, weight rising smoothly across `band` px around the joint — jeans curve
+    at the knee instead of folding like two stiff pieces (linear blend skinning)."""
+    crop, x0, y0, s = _merged(meta, imgs, a, b, cam_scale)
+    h, w = crop.shape[:2]
+    P = {n: np.array(meta["parts"][n]["pivot"], float) for n in (a, b)}
+    axis = P[b] - P[a]
+    L = np.linalg.norm(axis)
+    u = axis / L
+    Ma, Mb = cam @ Ta, cam @ Tb
+    src_corners = np.array([[x0, x0 + w / s, x0, x0 + w / s], [y0, y0, y0 + h / s, y0 + h / s], [1] * 4])
+    pts = np.concatenate([(Ma @ src_corners)[:2], (Mb @ src_corners)[:2]], 1)
+    bx0, by0 = np.maximum(np.floor(pts.min(1)).astype(int) - 2, 0)
+    bx1, by1 = np.minimum(np.ceil(pts.max(1)).astype(int) + 3, [W, H])
+    if bx1 <= bx0 or by1 <= by0:
+        return
+    gy, gx = np.mgrid[by0:by1, bx0:bx1].astype(np.float64)
+    Y = np.stack([gx, gy], -1)
+
+    def weight(X):
+        t = (X - P[a]) @ u
+        return np.clip((t - (L - band / 2)) / band, 0, 1) ** 2 * (3 - 2 * np.clip((t - (L - band / 2)) / band, 0, 1))
+
+    def inv(M, Yp):
+        A, c = M[:2, :2], M[:2, 2]
+        return (Yp - c) @ np.linalg.inv(A).T
+
+    Xa, Xb = inv(Ma, Y), inv(Mb, Y)
+    X = np.where((weight(Xa) < 0.5)[..., None], Xa, Xb)
+    for _ in range(4):                                  # fixed point on the blended transform
+        wgt = weight(X)[..., None, None]
+        A = (1 - wgt) * Ma[:2, :2] + wgt * Mb[:2, :2]
+        c = (1 - wgt[..., 0]) * Ma[:2, 2] + wgt[..., 0] * Mb[:2, 2]
+        det = A[..., 0, 0] * A[..., 1, 1] - A[..., 0, 1] * A[..., 1, 0]
+        r = Y - c
+        X = np.stack([(A[..., 1, 1] * r[..., 0] - A[..., 0, 1] * r[..., 1]) / det,
+                      (-A[..., 1, 0] * r[..., 0] + A[..., 0, 0] * r[..., 1]) / det], -1)
+    mx = ((X[..., 0] - x0) * s).astype(np.float32)
+    my = ((X[..., 1] - y0) * s).astype(np.float32)
+    warped = cv2.remap(crop, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT,
+                       borderValue=(0, 0, 0, 0))
+    al = warped[..., 3:4] / 255
+    roi = out[by0:by1, bx0:bx1]
+    roi *= 1 - al
+    roi += warped[..., :3]
+
+
+def render(meta, imgs, angles, bg=(255, 255, 255), root=None, camera=None, size=None, canvas=None,
+           bends=()):
     """warp each part only inside its own bounding box (≈30x faster than full-canvas warps).
     root: body placement in the world; camera: world → screen 3x3 (scale + pan);
-    size: (W, H) of the output; canvas: background image to draw onto."""
+    size: (W, H) of the output; canvas: background image to draw onto;
+    bends: [(parent, child, band_px)] drawn as one softly bending piece."""
     W, H = size or meta["canvas"]
     Ts = world_transforms(meta, angles, root)
     cam = np.eye(3) if camera is None else camera
@@ -105,7 +183,18 @@ def render(meta, imgs, angles, bg=(255, 255, 255), root=None, camera=None, size=
     else:
         out = np.empty((H, W, 3), np.float32)
         out[:] = bg
-    for n in meta["layer_order"]:
+    order = meta["layer_order"]
+    bent = {}
+    for pa, ch, band in bends:
+        later = pa if order.index(pa) > order.index(ch) else ch
+        bent[later] = (pa, ch, band)
+        bent.setdefault(pa if later == ch else ch, None)          # earlier one: skipped
+    for n in order:
+        if n in bent:
+            if bent[n] is not None:
+                pa, ch, band = bent[n]
+                _draw_bent(out, meta, imgs, pa, ch, band, Ts[pa], Ts[ch], cam, cam_scale, W, H)
+            continue
         sp = _sprite(imgs[n], cam_scale)
         if sp is None:
             continue

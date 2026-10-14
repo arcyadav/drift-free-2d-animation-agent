@@ -11,7 +11,7 @@ SRC = config.ROOT / "assets/motion/mixamo/Walking.zip"
 
 
 def test_walk():
-    act = mixamo_import.run(SRC, "walk")
+    act = mixamo_import.run(SRC, "walk_mixamo")
     F, st = act["frames"], act["stats"]
     assert F == len(act["root"]) == len(act["contacts"]["l"])
     assert st["loop_seam_ratio"] < 2, "loop seam jumps more than two normal frames"

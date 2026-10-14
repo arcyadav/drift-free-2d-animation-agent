@@ -1,17 +1,15 @@
 {
   "action": "walk",
   "view": "side",
-  "fps": 30,
-  "frames": 31,
+  "fps": 24,
+  "frames": 24,
   "loop": true,
-  "source": "mixamo",
-  "file": "Walking.zip",
-  "leg_cm": 88.9,
-  "stride_per_cycle": 2.076,
-  "cycle_frames": 31,
-  "loop_seam_ratio": 1.21,
+  "source": "code keyframes",
+  "stride_per_cycle": 1.033,
+  "cycle_frames": 24,
+  "bounce": 0.049,
   "contact_frames": {
     "l": 15,
-    "r": 16
+    "r": 15
   }
 }
