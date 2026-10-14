@@ -72,8 +72,8 @@ RULES = {
             ("shin_l", ["thigh_l"], 35, False, False),
             ("foot_l", ["shin_l"], 30, False, False),
             ("neck", ["head", "head_hair", "ponytail"], 30, False, False),
-            ("head", ["head_hair", "ponytail"], 18, False, False),
-            ("head_hair", ["ponytail"], 25, False, False),
+            ("head", ["head_hair", "ponytail", "strand_l"], 18, False, False),
+            ("head_hair", ["ponytail", "strand_l"], 25, False, False),
         ],
         "caps": [
             ("upper_arm_l", "upper_arm_l", ["torso"], 1.0),

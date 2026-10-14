@@ -479,6 +479,7 @@ def head_pivots(kp, info, lab_map, tail_id):
         ys, xs = np.where(tail)
         top = ys < ys.min() + 15
         pivots["scrunchie"] = np.array([xs[top].mean(), ys[top].mean()])
+    pivots["strand_top"] = np.array(info["strand_top"]) if info.get("strand_top") else pivots["neck_top"]
     return pivots
 
 

@@ -36,11 +36,12 @@ PARTS = [
     ("upper_arm_r", "r_shoulder"), ("forearm_r", "r_elbow"), ("hand_r", "r_wrist"),
     ("pelvis", "pelvis"), ("foot_l", "l_ankle"), ("shin_l", "l_knee"), ("thigh_l", "l_hip"),
     ("neck", "neck"), ("torso", "pelvis"), ("head", "neck_top"), ("head_hair", "neck_top"),
+    ("strand_l", "strand_top"),
     ("upper_arm_l", "l_shoulder"), ("forearm_l", "l_elbow"), ("hand_l", "l_wrist"),
     ("ponytail", "scrunchie"),
 ]
 PARENT = {"torso": None, "pelvis": None, "neck": "torso", "head": "neck",
-          "head_hair": "head", "ponytail": "head",
+          "head_hair": "head", "ponytail": "head", "strand_l": "head",
           **{f"{a}_{s}": p for s in "lr" for a, p in
              (("upper_arm", "torso"), ("forearm", f"upper_arm_{s}"), ("hand", f"forearm_{s}"),
               ("thigh", "pelvis"), ("shin", f"thigh_{s}"), ("foot", f"shin_{s}"))}}
@@ -49,7 +50,7 @@ COLOURS = {
     "pelvis": (40, 60, 140), "foot_l": (240, 240, 120), "shin_l": (120, 160, 240), "thigh_l": (70, 110, 200),
     "neck": (240, 170, 120), "torso": (230, 230, 230), "head": (250, 200, 160),
     "head_hair": (120, 60, 30), "upper_arm_l": (220, 50, 50), "forearm_l": (250, 120, 120),
-    "hand_l": (250, 190, 190), "ponytail": (200, 40, 160),
+    "hand_l": (250, 190, 190), "ponytail": (200, 40, 160), "strand_l": (255, 140, 0),
 }
 FAR_SHADE = 0.88       # far limbs: same art in shadow tone (0.78 read as almost black)
 FAR_SHRINK = 2         # px the far LEG is shrunk so it never peeks through the near leg's edge
@@ -61,6 +62,9 @@ SEAM_WIN = (-55, 5)    # search window for the seam, x relative to the shoulder 
 SEAM_TOL = 6           # px from the fitted line to count as an inlier
 TIP_L = 62             # pixel in the denim this light (denim L* ~40) near the hand = fingertip
 TIP_REACH = 14
+STRAND_L = 45          # front strand: dark hair pixels
+STRAND_HALF_W = 3.5    # ... thin (half-width in px) when growing up to its root
+STRAND_MIN_PX = 120
 CHIN_AHEAD = 25        # chin rows: face front at least this far ahead of the neck front
 
 
@@ -211,16 +215,42 @@ def split_parts(rgba, kp, pal):
     tips = denim & (L > TIP_L) & (ndi.distance_transform_edt(~hand) <= TIP_REACH)
     lab_map[tips] = PART_ID["hand_l"]
     outlines_to_front(lab_map, lab, near_ids)
+    strand_top = front_strand(lab_map, L, fg, kp, xx, yy)
     info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1), "hem_y": hem_y,
             "sleeve_line": [round(float(a), 4), round(float(b), 1)], "sleeve_seam_rows": [inl, rows],
             "throat": throat.round(1).tolist(), "jaw_back": back.round(1).tolist(), "scrunchie": tie,
-            "neck_top": neck_top.round(1).tolist()}
+            "neck_top": neck_top.round(1).tolist(), "strand_top": strand_top}
     return lab_map, info
 
 
 def outer_edge(rgba):
     """pixels within FAR_EDGE px of the drawing's true background."""
     return ndi.distance_transform_edt(rgba[..., 3] > 0) <= FAR_EDGE
+
+
+def front_strand(lab_map, L, fg, kp, xx, yy):
+    """The thin curl hanging in front of the ear → its own part (sways on a spring).
+    Seed: thin hair away from the hair mass, between eye and ear; then grown upward along
+    thin hair to its root at the temple. Returns the root (pivot) or None."""
+    eye, ear = kp["l_eye"], kp["l_ear"]
+    hairish = np.isin(lab_map, [PART_ID["head_hair"], PART_ID["head"]]) & (L < STRAND_L)
+    core = ndi.binary_opening((L < DARK_L) & fg, disk(HAIR_OPEN))
+    box = (xx > eye[0] + 25) & (xx < ear[0] + 2) & (yy > eye[1] - 25)
+    seed = ndi.binary_closing(hairish & (ndi.distance_transform_edt(~core) > 2) & box, disk(2)) & hairish
+    sl, n = ndi.label(seed)
+    if n == 0:
+        return None
+    sizes = ndi.sum(seed, sl, range(1, n + 1))
+    if sizes.max() < STRAND_MIN_PX:
+        return None
+    seed = sl == np.argmax(sizes) + 1
+    thin = hairish & box & (ndi.distance_transform_edt(hairish) <= STRAND_HALF_W)
+    strand = ndi.binary_propagation(seed, mask=seed | thin)
+    strand = ndi.binary_dilation(strand, iterations=1) & np.isin(lab_map, [PART_ID["head_hair"], PART_ID["head"]])         & (L < STRAND_L + 25)                                    # its anti-aliased outline too
+    lab_map[strand] = PART_ID["strand_l"]
+    ys, xs = np.where(strand)
+    top = ys < ys.min() + 6
+    return [round(float(xs[top].mean()), 1), round(float(ys.min()), 1)]
 
 
 def far_copy(near, shade=FAR_SHADE, shrink=FAR_SHRINK, edge_band=None):

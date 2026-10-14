@@ -4,7 +4,8 @@
   * foot lock: from heel-strike to heel-off the ankle is pinned where it landed; a 2-bone
     IK re-bends hip + knee to reach it (knee bends forward). Released when the heel lifts
     (push-off rolls over the toe, as in a real step).
-  * secondary motion: ponytail on a damped spring driven by the head's up/down motion,
+  * secondary motion: ponytail (+ optional front strand) on damped springs driven by
+    the head's up/down motion,
     trailing slightly while walking
   * camera follows her; ground marks scroll so the walk reads as travel; soft shadow
   * report: foot slide (px) before / after the lock → used by the critic
@@ -30,9 +31,11 @@ SCALE = 0.42                 # character px → screen px (she is 1344 px tall o
 GROUND_SCREEN_Y = 650
 BG = (246, 241, 232)         # warm cream, close to the source art's background
 GROUND = (222, 214, 200)
-SPRING_K, SPRING_D = 120.0, 9.0       # ponytail spring stiffness / damping (per s²)
-SPRING_GAIN = 0.06           # deg per px/s² of head vertical acceleration
-PONY_TRAIL = 4.0             # deg: ponytail trails back while walking
+# hair springs: stiffness k, damping d (per s²), gain (deg per px/s² of head vertical
+# acceleration), trail (deg it hangs back while walking). The thin front strand reacts
+# faster and less than the heavy ponytail.
+SPRINGS = {"ponytail": dict(k=120.0, d=9.0, gain=0.06, trail=4.0),
+           "strand_l": dict(k=260.0, d=14.0, gain=0.035, trail=2.5)}
 BENDS = [("thigh_l", "shin_l", 110), ("thigh_r", "shin_r", 110)]   # soft knees (band px)
 HEEL_LIFT_PX = 8             # planted ankle rising more than this = heel-off → release the lock
 
@@ -58,13 +61,15 @@ def two_bone_ik(hip, target, l1, l2, forward_x):
 
 
 class Walker:
-    def __init__(self, character, action="walk", view="side_left"):
+    def __init__(self, character, action="walk", view="side_left", strands=True):
         self.char_dir = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char_dir, view, "filled")
         self.rt = Retargeter(self.meta, load_motion(action), facing="left")
         self.P = self.rt.pivot
         self.ground_y = max(p["bbox"][3] for n, p in self.meta["parts"].items() if n.startswith("foot"))
         self.forward_x = -1.0
+        self.springs = {n: c for n, c in SPRINGS.items()
+                        if n in self.meta["parts"] and (strands or not n.startswith("strand"))}
 
     def chain_world(self, world, side, offset):
         """FK of one leg → hip, knee, ankle world positions (rig px + root offset)."""
@@ -83,7 +88,7 @@ class Walker:
         released = {"l": False, "r": False}
         slide = {"raw": [], "locked": []}
         prev_ankle = {"l": None, "r": None, "raw_l": None, "raw_r": None}
-        pony = [PONY_TRAIL, 0.0]
+        spring = {n: [c["trail"], 0.0] for n, c in self.springs.items()}
         head_y = []
         out = []
         dt = ON_TWOS / FPS
@@ -116,17 +121,19 @@ class Walker:
                     prev_ankle[f"raw_{s}"] = ankle
                 else:
                     prev_ankle[s] = prev_ankle[f"raw_{s}"] = None
-            # ---- ponytail spring (driven by vertical acceleration of the head) ----
+            # ---- hair springs (driven by vertical acceleration of the head) ----
             head_y.append(off[1])
             acc = 0.0
             if len(head_y) >= 3:
                 acc = (head_y[-1] - 2 * head_y[-2] + head_y[-3]) / dt ** 2
-            for _ in range(4):                                   # sub-steps for stability
-                h = dt / 4
-                a = -SPRING_K * (pony[0] - PONY_TRAIL) - SPRING_D * pony[1] + SPRING_GAIN * acc
-                pony[1] += a * h
-                pony[0] += pony[1] * h
-            world["ponytail"] = world.get("head", 0) + pony[0]
+            for n, c in self.springs.items():
+                st = spring[n]
+                for _ in range(4):                               # sub-steps for stability
+                    h = dt / 4
+                    a = -c["k"] * (st[0] - c["trail"]) - c["d"] * st[1] + c["gain"] * acc
+                    st[1] += a * h
+                    st[0] += st[1] * h
+                world[n] = world.get("head", 0) + st[0]
             local = to_local(self.meta, world)
             for _ in range(ON_TWOS):
                 if len(out) < n_frames:
@@ -174,10 +181,11 @@ class Walker:
         return img
 
 
-def run(character="protagonist", action="walk", seconds=4.0, out=None):
+def run(character="protagonist", action="walk", seconds=4.0, out=None, strands=True):
     out = out or config.ROOT / "outputs" / f"{action}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    rep = Walker(character, action).render(seconds, str(out))
+    rep = Walker(character, action, strands=strands).render(seconds, str(out))
+    rep["strands"] = strands
     rep.update({"character": character, "action": action, "file": str(out.name)})
     save_text(json.dumps(rep, indent=2), out.with_suffix(".json"))
     print(json.dumps(rep, indent=2))
@@ -189,5 +197,6 @@ if __name__ == "__main__":
     ap.add_argument("--character", default="protagonist")
     ap.add_argument("--action", default="walk")
     ap.add_argument("--seconds", type=float, default=4.0)
+    ap.add_argument("--no-strands", action="store_true", help="front hair strand stays still")
     a = ap.parse_args()
-    run(a.character, a.action, a.seconds)
+    run(a.character, a.action, a.seconds, strands=not a.no_strands)

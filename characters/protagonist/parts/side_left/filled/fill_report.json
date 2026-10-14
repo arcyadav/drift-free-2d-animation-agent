@@ -5,10 +5,11 @@
     "foot_l": 6195,
     "shin_l": 4673,
     "thigh_l": 23890,
-    "neck": 4516,
+    "neck": 4362,
     "torso": 18459,
-    "head": 6065,
-    "head_hair": 2530,
+    "head": 6423,
+    "head_hair": 3463,
+    "strand_l": 0,
     "upper_arm_l": 3345,
     "forearm_l": 3470,
     "hand_l": 1084,
@@ -82,14 +83,16 @@
       "head",
       [
         "head_hair",
-        "ponytail"
+        "ponytail",
+        "strand_l"
       ],
       18
     ],
     [
       "head_hair",
       [
-        "ponytail"
+        "ponytail",
+        "strand_l"
       ],
       25
     ]

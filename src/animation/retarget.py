@@ -101,6 +101,8 @@ class Retargeter:
         head = self._sample(self.ang["neck>head_top"], f) - self.ang["neck>head_top"].mean()
         sgn = -1 if self.facing == "left" else 1
         out["torso"] = sgn * spine
+        if "hip_tilt" in self.ang:                              # pelvis pitch, + = tips forward
+            out["pelvis"] = -sgn * self._sample(self.ang["hip_tilt"], f)
         out["head"] = out["torso"] + sgn * head * 0.5          # head steadier than the spine
         return out
 

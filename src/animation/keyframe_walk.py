@@ -33,6 +33,7 @@ STYLE = {
     "arm_swing": 13.0,     # deg each way
     "elbow": (6.0, 16.0),  # elbow bend (back, forward)
     "lean": 2.0,           # deg forward
+    "hip_tilt": 3.0,       # deg: pelvis tips forward/back once per step (peaks at push-off)
     "heel_strike": 12.0,   # toe up at contact, deg
     "push_off": 22.0,      # toe down at the end of stance, deg
 }
@@ -144,6 +145,10 @@ def build(st=STYLE):
              ("l_ankle", "l_toe"), ("r_hip", "r_knee"), ("r_knee", "r_ankle"), ("r_ankle", "r_toe")]
     for a, b in bones:
         angles[f"{a}>{b}"] = [round(ang(J[b][f] - J[a][f]), 2) for f in range(F)]
+    # pelvis pitch (+ = top tips forward): twice per cycle, peak as each leg pushes off
+    push = st["stance"] * 0.9
+    angles["hip_tilt"] = [round(st["hip_tilt"] * float(np.cos(2 * np.pi * 2 * (f / F - push))), 2)
+                          for f in range(F)]
     r4 = lambda arr: np.round(arr, 4).tolist()
     return {
         "fps": FPS, "frames": F, "view": "side", "loop": True,
