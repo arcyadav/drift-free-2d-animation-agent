@@ -1,0 +1,264 @@
+{
+  "views": {
+    "front": {
+      "bg_rgb": [
+        247.0,
+        244.0,
+        234.0
+      ],
+      "pockets_removed": 4,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1903,
+      "src": "assets/raw/turnaround/front.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "3q_left": {
+      "bg_rgb": [
+        253.0,
+        250.0,
+        235.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 3,
+      "fringe_px_unmixed": 2133,
+      "src": "assets/raw/turnaround/3q_left.png",
+      "src_size": [
+        848,
+        1264
+      ],
+      "scale": 1.1947
+    },
+    "side_left": {
+      "bg_rgb": [
+        245.0,
+        242.0,
+        227.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 3,
+      "fringe_px_unmixed": 1719,
+      "src": "assets/raw/turnaround/side_left.png",
+      "src_size": [
+        842,
+        1264
+      ],
+      "scale": 1.213
+    },
+    "back": {
+      "bg_rgb": [
+        249.0,
+        247.0,
+        235.0
+      ],
+      "pockets_removed": 2,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1521,
+      "src": "assets/raw/turnaround/back.png",
+      "src_size": [
+        848,
+        1264
+      ],
+      "scale": 1.2043
+    }
+  },
+  "apose": {
+    "front": {
+      "bg_rgb": [
+        247.0,
+        244.0,
+        234.0
+      ],
+      "pockets_removed": 4,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1903,
+      "src": "assets/raw/apose/front.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "side": {
+      "bg_rgb": [
+        245.0,
+        242.0,
+        227.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 3,
+      "fringe_px_unmixed": 1719,
+      "src": "assets/raw/apose/side.png",
+      "src_size": [
+        842,
+        1264
+      ],
+      "scale": 1.213
+    }
+  },
+  "faces": {
+    "3q_left/neutral": {
+      "bg_rgb": [
+        253.0,
+        250.0,
+        235.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 3,
+      "fringe_px_unmixed": 2133,
+      "src": "assets/raw/faces/3q_left/neutral.png",
+      "src_size": [
+        848,
+        1264
+      ],
+      "scale": 1.1947
+    },
+    "front/eyes_closed": {
+      "bg_rgb": [
+        245.0,
+        241.0,
+        229.0
+      ],
+      "pockets_removed": 2,
+      "specks_removed": 20,
+      "fringe_px_unmixed": 3968,
+      "src": "assets/raw/faces/front/eyes_closed.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/eyes_down": {
+      "bg_rgb": [
+        245.0,
+        242.0,
+        228.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 23,
+      "fringe_px_unmixed": 3853,
+      "src": "assets/raw/faces/front/eyes_down.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/eyes_half": {
+      "bg_rgb": [
+        245.0,
+        241.0,
+        229.0
+      ],
+      "pockets_removed": 2,
+      "specks_removed": 17,
+      "fringe_px_unmixed": 3832,
+      "src": "assets/raw/faces/front/eyes_half.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/neutral": {
+      "bg_rgb": [
+        247.0,
+        244.0,
+        234.0
+      ],
+      "pockets_removed": 4,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1903,
+      "src": "assets/raw/faces/front/neutral.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/sad": {
+      "bg_rgb": [
+        245.0,
+        242.0,
+        229.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 16,
+      "fringe_px_unmixed": 3956,
+      "src": "assets/raw/faces/front/sad.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/shocked": {
+      "bg_rgb": [
+        245.0,
+        241.0,
+        229.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 17,
+      "fringe_px_unmixed": 3774,
+      "src": "assets/raw/faces/front/shocked.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/smile": {
+      "bg_rgb": [
+        247.0,
+        245.0,
+        232.0
+      ],
+      "pockets_removed": 8,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1940,
+      "src": "assets/raw/faces/front/smile.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "front/worried": {
+      "bg_rgb": [
+        247.0,
+        246.0,
+        234.0
+      ],
+      "pockets_removed": 8,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1894,
+      "src": "assets/raw/faces/front/worried.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.997
+    },
+    "side_left/neutral": {
+      "bg_rgb": [
+        245.0,
+        242.0,
+        227.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 3,
+      "fringe_px_unmixed": 1719,
+      "src": "assets/raw/faces/side_left/neutral.png",
+      "src_size": [
+        842,
+        1264
+      ],
+      "scale": 1.213
+    }
+  }
+}

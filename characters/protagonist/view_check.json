@@ -1,0 +1,120 @@
+{
+  "views": {
+    "front": {
+      "colour_dE": {
+        "hair": 0.0,
+        "jeans": 0.0,
+        "tee": 0.0,
+        "sneakers": 0.0,
+        "skin": 0.0
+      },
+      "landmark_diff": {
+        "tee_bottom": 0.0,
+        "jeans_top": 0.0,
+        "jeans_bottom": 0.0
+      },
+      "coverage_vs_front": {
+        "tee": 1.0,
+        "jeans": 1.0
+      },
+      "issues": [],
+      "status": "ok",
+      "region_px": {
+        "hair": 7313,
+        "jeans": 197376,
+        "tee": 76772,
+        "sneakers": 3252,
+        "skin": 40837
+      }
+    },
+    "3q_left": {
+      "colour_dE": {
+        "hair": 4.06,
+        "jeans": 2.8,
+        "tee": 1.53,
+        "sneakers": 0.51,
+        "skin": 2.35
+      },
+      "landmark_diff": {
+        "tee_bottom": 0.0047,
+        "jeans_top": 0.0021,
+        "jeans_bottom": -0.0088
+      },
+      "coverage_vs_front": {
+        "tee": 1.08,
+        "jeans": 0.957
+      },
+      "issues": [],
+      "status": "ok",
+      "region_px": {
+        "hair": 475,
+        "jeans": 178124,
+        "tee": 79001,
+        "sneakers": 4709,
+        "skin": 40721
+      }
+    },
+    "side_left": {
+      "colour_dE": {
+        "hair": 1.62,
+        "jeans": 1.37,
+        "tee": 0.7,
+        "sneakers": 1.23,
+        "skin": 1.69
+      },
+      "landmark_diff": {
+        "tee_bottom": 0.0059,
+        "jeans_top": 0.0082,
+        "jeans_bottom": 0.0119
+      },
+      "coverage_vs_front": {
+        "tee": 0.911,
+        "jeans": 0.958
+      },
+      "issues": [],
+      "status": "ok",
+      "region_px": {
+        "hair": 4165,
+        "jeans": 106792,
+        "tee": 44475,
+        "sneakers": 3463,
+        "skin": 25037
+      }
+    },
+    "back": {
+      "colour_dE": {
+        "hair": 1.28,
+        "jeans": 0.75,
+        "tee": 0.32,
+        "sneakers": 0.35,
+        "skin": 0.94
+      },
+      "landmark_diff": {
+        "tee_bottom": 0.0023,
+        "jeans_top": 0.0023,
+        "jeans_bottom": 0.0067
+      },
+      "coverage_vs_front": {
+        "tee": 0.913,
+        "jeans": 0.99
+      },
+      "issues": [],
+      "status": "ok",
+      "region_px": {
+        "hair": 1943,
+        "jeans": 199344,
+        "tee": 69387,
+        "sneakers": 3715,
+        "skin": 23825
+      }
+    }
+  },
+  "summary": {
+    "front": "ok",
+    "3q_left": "ok",
+    "side_left": "ok",
+    "back": "ok",
+    "3q_right": "mirrored from 3q_left",
+    "side_right": "mirrored from side_left"
+  }
+}

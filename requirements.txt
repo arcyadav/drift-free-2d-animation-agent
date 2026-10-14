@@ -1,0 +1,14 @@
+# Local (CPU) environment — Python 3.11
+# Env lives outside OneDrive: C:\Users\ysarc\.venvs\aids_p3
+# GPU-only packages (SAM, diffusers, DWPose, torch CUDA) are installed inside the Kaggle/Colab notebooks.
+
+numpy>=1.26,<2.2
+pillow
+opencv-contrib-python<4.12   # single OpenCV package (rtmlib needs contrib)
+scipy
+scikit-image
+imageio
+imageio-ffmpeg
+tqdm
+rtmlib            # DWPose / RTMPose via ONNX on CPU
+onnxruntime
