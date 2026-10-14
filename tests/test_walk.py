@@ -19,21 +19,16 @@ def test_walk():
     knee = ang["l_hip>l_knee"] - ang["l_knee>l_ankle"]          # knee flexion
     st = knee[l]
     n = len(st)
-    load, mid = st[: int(0.3 * n)], st[int(0.45 * n): int(0.75 * n)]
-    assert 15 < load.max() < 40, f"knee gives as the foot takes the weight, got {load.max():.0f} deg"
-    assert mid.max() < 20, f"mid-stance knee nearly straight (soft), got {mid.max():.0f} deg"
-    H = np.array(act["root"])[:, 1]
-    step = len(H) // 2
-    assert 0 < int(H[:step].argmin()) <= 3, "DOWN (lowest) just after heel strike"
-    up = int(H[:step].argmax())
-    assert step // 2 < up < step, "UP (highest) after passing, before the next contact"
-    heel = np.array(act["joints"]["l_ankle"])[:, 1]
-    assert heel[up] > heel[: step // 2].min() + 0.01, "heel lifts at UP (push-off)"
-    gap = np.array(act["joints"]["l_ankle"])[:, 0] - np.array(act["joints"]["r_ankle"])[:, 0]
-    passing = int(np.argmin(np.abs(gap[:step])))
-    assert int(H[:step].argmin()) < passing < up, "order: contact, down, passing, up"
+    # natural walk, not a lunge: the support leg stays nearly straight, the body vaults over it
+    assert st[: int(0.45 * n)].max() <= 25, f"support knee lunges: {st[: int(0.45 * n)].max():.0f} deg"
+    assert st[int(0.35 * n): int(0.6 * n)].max() <= 15, "support leg nearly straight in mid-stance"
     assert knee.max() < 70, "swing knee bends less than 70 degrees"
-
+    H = np.array(act["root"])[:, 1]
+    assert np.abs(np.diff(np.r_[H, H[0]])).max() <= 0.016, "no sudden drops / hops in body height"
+    assert 0.03 <= H.max() - H.min() <= 0.07, f"gentle bounce, got {H.max() - H.min():.3f}"
+    heel = np.array(act["joints"]["l_ankle"])[:, 1]
+    assert heel[l][-3:].max() > heel[l][:3].min() + 0.03, "heel lifts before toe-off (push-off)"
+    assert act.get("torso_lean", 0) >= 3, "upper body leans forward into the step"
     _, slide = Walker("protagonist").poses(3.0)
     assert np.mean(slide["locked"]) < 0.5 and np.max(slide["locked"]) < 2.0, slide["locked"]
     print("walk: all checks passed")

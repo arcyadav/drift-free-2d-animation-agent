@@ -18,6 +18,8 @@ import numpy as np
 
 from src import config
 
+HEAD_KEEP_LEAN = 0.3   # share of the torso lean the head keeps (eyes stay on the road)
+
 # rig part → (motion bone, mode)
 BONE_MAP_SIDE = {
     "thigh": ("{s}_hip>{s}_knee", "abs"), "shin": ("{s}_knee>{s}_ankle", "abs"),
@@ -104,6 +106,10 @@ class Retargeter:
         if "hip_tilt" in self.ang:                              # pelvis pitch, + = tips forward
             out["pelvis"] = -sgn * self._sample(self.ang["hip_tilt"], f)
         out["head"] = out["torso"] + sgn * head * 0.5          # head steadier than the spine
+        lean = self.m.get("torso_lean", 0.0)                    # constant forward lean (deg)
+        if lean:
+            out["torso"] += -sgn * lean                          # + forward = toward the facing
+            out["head"] += -sgn * lean * (1 - HEAD_KEEP_LEAN)    # head stays mostly level
         return out
 
     def root_offset(self, t):

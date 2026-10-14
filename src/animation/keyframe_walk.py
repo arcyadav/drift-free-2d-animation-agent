@@ -6,11 +6,10 @@ the classic 2D walk (contact → down → passing → up) with style parameters,
 same motion.json format, so the Retargeter / foot lock / renderer are unchanged.
 
 Built from the feet up (all lengths in leg lengths, x = forward, y = up):
-  * body height is keyed like a 2D animator does, per step:
-        contact (heel touches, middle) -> down (foot settles, LOWEST) ->
-        passing (swing leg passes the support leg, knee bent; higher) ->
-        up (heel lifts, push-off, HIGHEST) -> next contact
-    and interpolated with a smooth periodic spline
+  * body height is keyed per step like a 2D animator does, with heights that a real
+    walk allows: contact (front leg reaching, low) -> down (foot settles, slight dip) ->
+    passing (support leg nearly straight, HIGHEST) -> up (heel lifts as the foot is
+    behind the body: push-off) -> next contact; shape-preserving curve between keys
   * stance (60% of the cycle): the ankle slides back under the body at walking speed —
     i.e. it stands still on the ground in the world. Where the body is higher than a
     flat foot can reach (up), the heel lifts by exactly what is needed: the push-off
@@ -35,17 +34,22 @@ STYLE = {
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.09,          # swing-foot lift at mid-swing
     "knee_soft": 6.0,      # deg: stance knee never locks straight
-    # body height keys per step (share of the step, leg lengths relative to contact)
-    "down_at": 0.12, "settle": 0.02,       # foot settles: body LOWEST (slightly)
-    "pass_at": 0.58, "pass_rise": 0.046,   # swing leg passes the support leg (nearly straight)
-    "up_at": 0.84, "up_rise": 0.062,       # heel lifts, push-off: body HIGHEST
+    # Real walking: the support leg stays nearly straight (a stilt) and the body vaults over
+    # it, falling forward into the next step. Bending the support knee instead looks like a
+    # lunge / penguin. So: hip height = what the support leg reaches with a soft knee,
+    # minus a slight dip after heel strike ('down'); the back heel lifts as the body moves
+    # ahead of it ('up', push-off) — no extra bounce.
+    "settle": 0.016,       # leg lengths: body holds low while the front foot takes the weight
+    "load_peak": 0.15,     # ... deepest at this share of the stance
+    "descent": 0.012,      # leg lengths per frame: the body comes down steadily into each
+                           # heel strike (a controlled fall onto the front foot, no drop)
     "heel_min": 0.08,      # heel lift at toe-off (leg lengths)
     "ankle_h": 0.20,       # ankle above the ground (her sneaker is tall)
     "arm_swing": 13.0,     # deg each way
     "elbow": (6.0, 16.0),  # elbow bend (back, forward)
-    "lean": 2.0,           # deg forward
+    "lean": 5.0,           # deg: upper body tips forward from the hips (falling into the step)
     "chest_counter": 0.4,  # chest tips opposite to the hips (share of hip_tilt)
-    "head_nod": 3.0,       # deg: head dips just after the body sinks (follow-through)
+    "head_nod": 0.0,       # deg: head dip after 'down' — any visible nod reads as a chicken
     "hip_tilt": 3.0,       # deg: pelvis tips forward/back once per step (peaks at push-off)
     "heel_strike": 12.0,   # toe up at contact, deg
 }
@@ -59,19 +63,6 @@ def smooth(x):
 
 
 BALL = 0.22                # ankle -> ball of the foot (the foot pivots here at push-off)
-
-
-def height_curve(st):
-    """body height per step share u in [0, 1): shape-preserving (PCHIP) curve through the
-    key poses, repeated on both sides so it loops — it never overshoots a key (a cubic
-    spline dipped below 'down' and bent the knee far too much)."""
-    from scipy.interpolate import PchipInterpolator
-    ku = [0.0, st["down_at"], st["pass_at"], st["up_at"]]
-    kh = [0.0, -st["settle"], st["pass_rise"], st["up_rise"]]
-    u = [k + o for o in (-1, 0, 1) for k in ku] + [2.0]
-    h = kh * 3 + [0.0]
-    f = PchipInterpolator(u, h)
-    return lambda x: f(np.asarray(x) % 1.0)
 
 
 def ankle_body(p, st):
@@ -113,12 +104,37 @@ def build(st=STYLE):
     stride = speed * st["cycle_s"]
     phase = {"l": 0.0, "r": 0.5}
     phase_frames = {s: (1 - ph) % 1 * F for s, ph in phase.items()}    # frame of heel strike
-    # body height: keyed per step (contact -> down -> passing -> up); contact height =
-    # what the front leg reaches with a soft knee when it lands
+    # body height: the support leg(s) vault the body with a soft knee; a leg late in its
+    # stance may lift its heel (that extends its reach), so the body is held up by the leg
+    # it is moving over, not dragged down by the one it is leaving
     d_soft = (THIGH + SHIN) * np.cos(np.radians(st["knee_soft"]) / 2)
+
+    def heel_ramp(q):                     # push-off heel lift late in stance (also in lift below)
+        return st["heel_min"] * smooth((q - 0.6) / 0.4)
+
+    H = np.zeros(F)
+    for f in range(F):
+        h = []
+        for s_ in "lr":
+            p = (f / F + phase[s_]) % 1
+            a, planted = ankle_body(p, st)
+            if planted:
+                q = p / st["stance"]
+                h.append(st["ankle_h"] + heel_ramp(q) + np.sqrt(max(d_soft ** 2 - a[0] ** 2, 0.0)))
+        H[f] = min(h)
+        for s_ in "lr":                                       # 'down': slight dip after heel strike
+            q = ((f / F + phase[s_]) % 1) / st["stance"]
+            if q < 0.45:
+                bump = smooth(q / st["load_peak"]) if q < st["load_peak"] \
+                    else 1 - smooth((q - st["load_peak"]) / (0.45 - st["load_peak"]))
+                H[f] -= st["settle"] * bump
+    # anticipation: descend steadily into each heel strike instead of dropping at contact
     Hc = st["ankle_h"] + np.sqrt(d_soft ** 2 - (st["step"] / 2) ** 2)
-    curve = height_curve(st)
-    H = np.array([Hc + float(curve((f / F % 0.5) / 0.5)) for f in range(F)])
+    strikes = sorted(int(round((1 - ph) % 1 * F)) % F for ph in phase.values())
+    for f in range(F):
+        until = min((c - f) % F for c in strikes)
+        H[f] = min(H[f], Hc + st["descent"] * until)
+
     # heel lift per stance frame: what the body height needs (push-off) and at least a ramp
     # to heel_min by toe-off; once lifted it only rises until the toe leaves the ground
     lift = {s: np.zeros(F) for s in "lr"}
@@ -131,7 +147,7 @@ def build(st=STYLE):
             q = k / (st["stance"] * F)
             x = st["step"] / 2 - st["step"] * q
             flat = st["ankle_h"] + np.sqrt(max(d_soft ** 2 - x ** 2, 0.0))
-            need = max(0.0, H[f] - flat, st["heel_min"] * smooth((q - 0.5) / 0.5))
+            need = max(0.0, H[f] - flat, heel_ramp(q))
             run_max = max(run_max, need) if q > 0.4 else need
             lift[s][f] = run_max
 
@@ -150,7 +166,7 @@ def build(st=STYLE):
         J["chest"][f] = root + 0.55 * np.array([np.sin(lean), np.cos(lean)])
         J["neck"][f] = root + 0.75 * np.array([np.sin(lean), np.cos(lean)])
         # head nod: dips forward just after each 'down' (lags the body by ~0.05 of a cycle)
-        nod = np.radians(st["head_nod"] * max(0.0, np.cos(2 * np.pi * 2 * (f / F - st["down_at"] / 2 - 0.05))))
+        nod = np.radians(st["head_nod"] * max(0.0, np.cos(2 * np.pi * 2 * (f / F - st["load_peak"] * st["stance"] - 0.05))))
         J["head_top"][f] = J["neck"][f] + 0.35 * np.array([np.sin(nod + 0.057), np.cos(nod + 0.057)])
         for s in "lr":
             p = (f / F + phase[s]) % 1
@@ -203,6 +219,7 @@ def build(st=STYLE):
         "lateral": {f"{s}_{j}": [0.1 if s == "l" else -0.1] * F
                     for s in "lr" for j in ("shoulder", "hip", "knee", "ankle", "wrist")},
         "angles": angles, "root": r4(J["pelvis"]), "contacts": contacts,
+        "torso_lean": st["lean"],
         "stats": {"stride_per_cycle": round(stride, 3), "cycle_frames": F,
                   "bounce": round(float(H.max() - H.min()), 3),
                   "contact_frames": {s: int(sum(c)) for s, c in contacts.items()},
