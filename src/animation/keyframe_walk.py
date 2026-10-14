@@ -9,8 +9,10 @@ Built from the feet up (all lengths in leg lengths, x = forward, y = up):
   * stance (60% of the cycle): the ankle slides back under the body at walking speed —
     i.e. it stands still on the ground in the world; the heel lifts in the last part
   * swing: the ankle arcs forward (smoothstep), lifted LIFT at mid-swing
-  * hip height = what the stance leg(s) can reach with a slightly soft knee → natural
-    down / up bounce; thigh + shin angles come from 2-bone IK (knee forward)
+  * hip height = what the stance leg(s) can reach with the stance knee curve: the knee
+    gives just after heel strike as the foot takes the weight → the body sinks ('down'),
+    then rises over the straightening leg ('up'); thigh + shin from 2-bone IK
+  * upper body follows: chest tips against the hips, head nods slightly after each down
   * arms swing opposite the legs, elbows almost straight (more bend when forward)
 
 Usage: python -m src.animation.keyframe_walk --action walk
@@ -28,11 +30,16 @@ STYLE = {
     "step": 0.62,          # ankle travel under the body during stance (leg lengths)
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.09,          # swing-foot lift at mid-swing
-    "reach": 0.995,        # stance leg never fully straight: soft knee (~11 deg)
+    "knee_soft": 6.0,      # deg: stance knee never locks straight
+    "load_flex": 12.0,     # deg: knee gives as the foot takes the weight ...
+    "load_peak": 0.15,     # ... deepest at this share of the stance, straight again by 0.45
+    "settle": 0.035,       # leg lengths the body sinks just after heel strike ('down' pose)
     "ankle_h": 0.20,       # ankle above the ground (her sneaker is tall)
     "arm_swing": 13.0,     # deg each way
     "elbow": (6.0, 16.0),  # elbow bend (back, forward)
     "lean": 2.0,           # deg forward
+    "chest_counter": 0.4,  # chest tips opposite to the hips (share of hip_tilt)
+    "head_nod": 3.0,       # deg: head dips just after the body sinks (follow-through)
     "hip_tilt": 3.0,       # deg: pelvis tips forward/back once per step (peaks at push-off)
     "heel_strike": 12.0,   # toe up at contact, deg
     "push_off": 22.0,      # toe down at the end of stance, deg
@@ -44,6 +51,17 @@ THIGH = SHIN = 0.5
 def smooth(x):
     x = np.clip(x, 0, 1)
     return x * x * (3 - 2 * x)
+
+
+def stance_flex(q, st):
+    """stance knee flexion (deg) over the stance share q in [0, 1): soft at heel strike,
+    gives to load_flex at load_peak (weight acceptance), soft again by mid-stance."""
+    soft, load, pk = st["knee_soft"], st["load_flex"], st["load_peak"]
+    if q < pk:
+        return soft + (load - soft) * smooth(q / pk)
+    if q < 0.45:
+        return load + (soft - load) * smooth((q - pk) / (0.45 - pk))
+    return soft
 
 
 def ankle_body(p, st):
@@ -85,15 +103,24 @@ def build(st=STYLE):
     speed = st["step"] / (st["stance"] * st["cycle_s"])          # stance foot stands still
     stride = speed * st["cycle_s"]
     phase = {"l": 0.0, "r": 0.5}
-    # hip height: lowest of what each planted leg can reach with a soft knee
+    # hip height: lowest of what each planted leg can reach with its knee bent by the
+    # stance knee curve — sinks just after heel strike (weight acceptance), rises after
     H = np.zeros(F)
     for f in range(F):
         h = []
         for s in "lr":
-            a, planted = ankle_body((f / F + phase[s]) % 1, st)
+            p = (f / F + phase[s]) % 1
+            a, planted = ankle_body(p, st)
             if planted:
-                h.append(a[1] + np.sqrt(max(st["reach"] ** 2 - a[0] ** 2, 0.3)))
+                d = (THIGH + SHIN) * np.cos(np.radians(stance_flex(p / st["stance"], st)) / 2)
+                h.append(a[1] + np.sqrt(max(d ** 2 - a[0] ** 2, 0.3)))
         H[f] = min(h)
+        # 'down': the body sinks just after the heel lands, as the leg takes the weight
+        for s in "lr":
+            q = ((f / F + phase[s]) % 1) / st["stance"]
+            if q < 0.45:
+                bump = smooth(q / st["load_peak"]) if q < st["load_peak"]                     else 1 - smooth((q - st["load_peak"]) / (0.45 - st["load_peak"]))
+                H[f] -= st["settle"] * bump
     # (no smoothing: averaging lowers the peak and bends the planted knee a lot)
 
     J = {k: np.zeros((F, 2)) for k in ("pelvis", "chest", "neck", "head_top", "l_hip", "r_hip",
@@ -106,10 +133,13 @@ def build(st=STYLE):
         t = f / FPS
         root = np.array([speed * t, H[f]])
         J["pelvis"][f] = root
-        lean = np.radians(st["lean"])
+        tilt_f = st["hip_tilt"] * np.cos(2 * np.pi * 2 * (f / F - st["stance"] * 0.9))
+        lean = np.radians(st["lean"] - st["chest_counter"] * tilt_f)       # chest counters the hips
         J["chest"][f] = root + 0.55 * np.array([np.sin(lean), np.cos(lean)])
         J["neck"][f] = root + 0.75 * np.array([np.sin(lean), np.cos(lean)])
-        J["head_top"][f] = J["neck"][f] + np.array([0.02, 0.35])
+        # head nod: dips forward just after each 'down' (lags the body by ~0.05 of a cycle)
+        nod = np.radians(st["head_nod"] * max(0.0, np.cos(2 * np.pi * 2 * (f / F - st["load_peak"] * st["stance"] - 0.05))))
+        J["head_top"][f] = J["neck"][f] + 0.35 * np.array([np.sin(nod + 0.057), np.cos(nod + 0.057)])
         for s in "lr":
             p = (f / F + phase[s]) % 1
             a, planted = ankle_body(p, st)

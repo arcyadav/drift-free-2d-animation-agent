@@ -61,7 +61,7 @@ def two_bone_ik(hip, target, l1, l2, forward_x):
 
 
 class Walker:
-    def __init__(self, character, action="walk", view="side_left", strands=True):
+    def __init__(self, character, action="walk", view="side_left", strands=False):
         self.char_dir = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char_dir, view, "filled")
         self.rt = Retargeter(self.meta, load_motion(action), facing="left")
@@ -181,7 +181,7 @@ class Walker:
         return img
 
 
-def run(character="protagonist", action="walk", seconds=4.0, out=None, strands=True):
+def run(character="protagonist", action="walk", seconds=4.0, out=None, strands=False):
     out = out or config.ROOT / "outputs" / f"{action}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
     rep = Walker(character, action, strands=strands).render(seconds, str(out))
@@ -197,6 +197,6 @@ if __name__ == "__main__":
     ap.add_argument("--character", default="protagonist")
     ap.add_argument("--action", default="walk")
     ap.add_argument("--seconds", type=float, default=4.0)
-    ap.add_argument("--no-strands", action="store_true", help="front hair strand stays still")
+    ap.add_argument("--strands", action="store_true", help="front hair strand sways on a spring (off by default)")
     a = ap.parse_args()
-    run(a.character, a.action, a.seconds, strands=not a.no_strands)
+    run(a.character, a.action, a.seconds, strands=a.strands)

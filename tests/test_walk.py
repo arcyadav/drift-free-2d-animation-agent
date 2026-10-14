@@ -17,8 +17,13 @@ def test_walk():
     step = np.mean([np.abs(np.diff(v)).mean() for v in ang.values()])
     assert seam < 2.5 * step, "cycle must loop smoothly"
     knee = ang["l_hip>l_knee"] - ang["l_knee>l_ankle"]          # knee flexion
-    stance = knee[l][: int(0.75 * l.sum())]                  # before heel-off (knee bends then)
-    assert stance.max() < 20, f"planted knee nearly straight (soft), got {stance.max():.0f} deg"
+    st = knee[l]
+    n = len(st)
+    load, mid = st[: int(0.3 * n)], st[int(0.45 * n): int(0.75 * n)]
+    assert 15 < load.max() < 40, f"knee gives as the foot takes the weight, got {load.max():.0f} deg"
+    assert mid.max() < 20, f"mid-stance knee nearly straight (soft), got {mid.max():.0f} deg"
+    H = np.array(act["root"])[:, 1]
+    assert 0 < int(H.argmin()) <= 4, "lowest point ('down') just after heel strike"
     assert knee.max() < 70, "swing knee bends less than 70 degrees"
 
     _, slide = Walker("protagonist").poses(3.0)

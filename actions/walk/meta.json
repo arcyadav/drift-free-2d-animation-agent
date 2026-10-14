@@ -7,7 +7,7 @@
   "source": "code keyframes",
   "stride_per_cycle": 1.033,
   "cycle_frames": 24,
-  "bounce": 0.049,
+  "bounce": 0.064,
   "contact_frames": {
     "l": 15,
     "r": 15
