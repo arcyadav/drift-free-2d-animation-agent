@@ -29,7 +29,8 @@ def test_fill(view="front", must_fill=("forearm_l", "torso", "neck")):
     from scipy import ndimage as ndi
     core = ndi.binary_erosion(art[..., 3] == 255, iterations=6)
     d_art = np.abs(raw_img - ref).max(-1)
-    assert d_art[core].max() <= 2, f"cut-outs differ from the art inside the body: {d_art[core].max():.0f}"
+    # ≤4/255: arm-over-jeans unmixing is exact up to 8-bit rounding of colour and opacity
+    assert d_art[core].max() <= 4, f"cut-outs differ from the art inside the body: {d_art[core].max():.0f}"
 
     # 2. a filled part keeps every original pixel unchanged
     for n in meta["layer_order"]:

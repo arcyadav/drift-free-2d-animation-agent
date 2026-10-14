@@ -72,6 +72,12 @@ OUTLINE_DE = 15        # outline pixel: colour this far (ΔE) from its part's me
 OUTLINE_REACH = 2      # ... and within this many px of a part drawn in front → goes to that part
 BLEND_DE = 6           # anti-aliased blend next to a front part: smaller colour difference ...
 BLEND_REACH = 2        # ... within this many px
+MOVERS = [f"{a}_{s}" for s in "lr" for a in ("upper_arm", "forearm", "hand")]
+UNMIX_REACH = 22       # arm pixels this close to a part behind may carry its colour (finger gaps)
+UNMIX_MIN = 0.12       # ignore tiny mixes (clean skin / outline)
+UNMIX_CLEAN_GAP = 4    # px from the arm before denim counts as clean
+DEFAULT_LINE = (78, 52, 40)   # warm dark brown, if no clean arm outline is found
+UNMIX_CONTRAST = 40    # RGB distance arm ↔ part behind below which there is nothing to unmix
 HALO_SOLID_A = 200     # dehalo: pixels at least this opaque count as the part's true colour
 HALO_DL = 20           # edge pixel this much lighter than the part = background halo
 HALO_RAMP = 25         # ... fully transparent once this much lighter again
@@ -342,6 +348,92 @@ def validate(lab_map, parts=PARTS, part_id=PART_ID):
     return issues, stats
 
 
+def unmix_movers(cuts, rgba, lab_map, parts, part_id, movers):
+    """The arm is drawn over the jeans, so its edge pixels are a mix of arm and denim.
+    Per pixel near a part behind it: p = (1-b)*A + b*D with D = denim just outside and A =
+    the arm's own colour (skin or its outline, whichever explains p best). The arm keeps
+    (p - b*D)/(1-b) at opacity (1-b); the part behind gets D at that pixel. Over the jeans
+    the sum is exactly the original pixel; once the arm swings away its edge is clean —
+    no blue fringe, no denim between the fingers."""
+    names = [n for n, _ in parts]
+    mov = [m for m in movers if m in part_id and (lab_map == part_id[m]).any()]
+    if not mov:
+        return 0
+    first = min(names.index(m) for m in mov)
+    behind_ids = [part_id[n] for n in names[:first]]
+    M = np.isin(lab_map, [part_id[m] for m in mov])
+    O = np.isin(lab_map, behind_ids)
+    if not O.any():
+        return 0
+    rgb = rgba[..., :3].astype(np.float32)
+    lab = rgb2lab(rgba[..., :3] / 255.0)
+    dO = ndi.distance_transform_edt(~O)
+    R = M & (dO <= UNMIX_REACH)
+    # the denim colour comes from CLEAN denim a few px away from the arm: the touching
+    # pixels still hold bits of the arm's outline (would paint a brown trace on the jeans)
+    O_clean = O & (ndi.distance_transform_edt(~M) > UNMIX_CLEAN_GAP)
+    _, (oy, ox) = ndi.distance_transform_edt(~O_clean, return_indices=True)
+    name_of = {v: k for k, v in part_id.items()}
+    # the arm's own outline colour, measured where the arm is NOT next to the jeans (its
+    # edge against the background / tee) — the hand alone is all edge near the denim
+    skin_L = np.median(lab[M][:, 0])
+    clean_line = M & (lab[..., 0] < skin_L - 15) & (dO > UNMIX_REACH)
+    line = np.median(rgb[clean_line], 0) if clean_line.sum() > 20 else np.array(DEFAULT_LINE, np.float32)
+    changed = 0
+    for m in mov:
+        own = lab_map == part_id[m]
+        reg = R & own
+        if not reg.any():
+            continue
+        core = ndi.binary_erosion(own, iterations=3)
+        src = core if core.sum() > 30 else own
+        skin = np.median(rgb[src & (lab[..., 0] > skin_L - 15)], 0) if (src & (lab[..., 0] > skin_L - 15)).sum() > 30             else np.median(rgb[src], 0)
+        p = rgb[reg]
+        D = rgb[oy[reg], ox[reg]]
+        best = None
+        for A in (skin, line):
+            d = D - A
+            bta = np.clip(((p - A) * d).sum(1) / np.maximum((d * d).sum(1), 1.0), 0, 1)
+            res = np.linalg.norm(p - (A + bta[:, None] * d), axis=1)
+            Ab = np.repeat(A[None], len(p), 0)
+            if best is None:
+                best = [bta, res, Ab]
+            else:
+                pick = res < best[1]
+                best[0][pick], best[1][pick], best[2][pick] = bta[pick], res[pick], Ab[pick]
+        bta, _, Ab = best
+        # cap the denim share so the arm's unmixed colour stays in 0..255: then
+        # arm over jeans adds up to the original pixel exactly
+        with np.errstate(divide="ignore", invalid="ignore"):
+            lo = np.where(D > 0, p / D, np.inf)
+            hi = np.where(D < 255, (255 - p) / (255 - D), np.inf)
+        bta = np.minimum(bta, np.minimum(lo, hi).min(1))
+        # only where arm and the part behind clearly differ (skin vs denim); tee sleeve over
+        # tee body is the same colour — nothing to unmix, and the mix can't be measured
+        contrast = np.linalg.norm(D - Ab, axis=1)
+        act = (bta > UNMIX_MIN) & (contrast > UNMIX_CONTRAST)
+        if not act.any():
+            continue
+        ys, xs = np.where(reg)
+        ys, xs, bt, P_, D_ = ys[act], xs[act], bta[act], p[act], D[act]
+        a8 = np.round(255 * (1 - bt))                             # 8-bit opacity the arm keeps
+        al = (a8 / 255)[:, None]
+        # colour from the rounded opacity → arm over D reproduces p exactly
+        col = np.where(al > 0, (P_ - (1 - al) * D_) / np.maximum(al, 1e-6), 0)
+        cut = cuts[m]
+        cut[ys, xs, :3] = np.clip(np.round(col), 0, 255).astype(np.uint8)
+        cut[ys, xs, 3] = a8.astype(np.uint8)
+        under = np.where(al > 0, D_, P_)                          # fully given away → exact pixel
+        owner = lab_map[oy[ys, xs], ox[ys, xs]]                  # the part behind gets the denim share
+        for oid in np.unique(owner):
+            sel = owner == oid
+            nb = cuts[name_of[int(oid)]]
+            nb[ys[sel], xs[sel], :3] = np.clip(np.round(under[sel]), 0, 255).astype(np.uint8)
+            nb[ys[sel], xs[sel], 3] = 255
+        changed += int(act.sum())
+    return changed
+
+
 def silhouette_band(rgba):
     """pixels within HALO_BAND px of the drawing's true background."""
     return ndi.distance_transform_edt(rgba[..., 3] > 0) <= HALO_BAND
@@ -381,21 +473,27 @@ def head_pivots(kp, info, lab_map, tail_id):
 
 
 def save(char_dir, view, rgba, lab_map, pivots, info, issues, stats, parts, parent, part_id, colours,
-         cutouts=None):
-    """cutouts: optional {part: RGBA} for parts that are not a plain cut of the art
-    (side view: far limbs = darkened copies of the near ones)."""
+         derived=None):
+    """derived: optional {part: (source part, fn)} for parts made from another part's final
+    cut-out (side view: far limbs = darkened copies of the cleaned near ones)."""
     out = char_dir / "parts" / view
     out.mkdir(parents=True, exist_ok=True)
     band = silhouette_band(rgba)
     save_image(lab_map, out / "labels.png")
+    cuts = {}
     for name, _ in parts:
-        if cutouts and name in cutouts:
-            cut = cutouts[name]
-        else:
-            cut = rgba.copy()
-            cut[..., 3] = np.where(lab_map == part_id[name], rgba[..., 3], 0)
-            cut = dehalo(cut, band)
-        save_image(cut, out / f"{name}.png")
+        cut = rgba.copy()
+        cut[..., 3] = np.where(lab_map == part_id[name], rgba[..., 3], 0)
+        cuts[name] = cut
+    info["unmixed_px"] = unmix_movers(cuts, rgba, lab_map, parts, part_id, MOVERS)
+    final = {}
+    for name, _ in parts:
+        if not (derived and name in derived):
+            final[name] = dehalo(cuts[name], band)
+    for name, (src, fn) in (derived or {}).items():
+        final[name] = fn(final[src])
+    for name, _ in parts:
+        save_image(final[name], out / f"{name}.png")
     meta = {"view": view, "canvas": list(rgba.shape[1::-1]), "info": info, "issues": issues,
             "layer_order": [n for n, _ in parts],
             "parts": {n: {"id": part_id[n], "parent": parent[n], "pivot_joint": j,

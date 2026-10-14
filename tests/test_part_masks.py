@@ -60,7 +60,9 @@ def test_side_parts():
         far = np.asarray(Image.open(CHAR / f"parts/side_left/{limb}_r.png"))
         near = np.asarray(Image.open(CHAR / f"parts/side_left/{limb}_l.png"))
         outside = (far[..., 3] > 0) & (near[..., 3] < 128)
-        assert outside.sum() < 0.005 * (far[..., 3] > 0).sum(), "far copy must stay inside the near limb"
+        # the cleaned near hand/forearm has see-through denim edges; the far copy may reach
+        # under them (≤2%) — at rest the jeans in front hide it (checked by test_hidden_fill)
+        assert outside.sum() < 0.02 * (far[..., 3] > 0).sum(), "far copy must stay inside the near limb"
         on = far[..., 3] > 0
         assert on.sum() > 0.5 * (near[..., 3] > 0).sum()   # 2-px shrink eats thin fingers
         assert far[on][:, :3].mean() < near[on][:, :3].mean()

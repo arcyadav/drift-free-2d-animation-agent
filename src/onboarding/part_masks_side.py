@@ -25,8 +25,7 @@ from skimage.morphology import disk
 from src import config
 from src.onboarding.part_masks import (DARK_L, HAIR_MIN_PX, HAIR_OPEN, EAR_MIN_PX, CROTCH_FRAC,
                                        beyond, classify, cleanup, head_pivots, jaw_line,
-                                       dehalo, outlines_to_front, save, scrunchie, side,
-                                       silhouette_band, validate)
+                                       outlines_to_front, save, scrunchie, side, validate)
 
 VIEW = "side_left"
 NEAR, FAR = "l", "r"
@@ -57,6 +56,8 @@ FAR_SHRINK = 2         # px the far copy is shrunk so it never peeks through the
 SEAM_DL = 4            # sleeve seam: L* at least this much below the row's tee median
 SEAM_WIN = (-55, 5)    # search window for the seam, x relative to the shoulder joint
 SEAM_TOL = 6           # px from the fitted line to count as an inlier
+TIP_L = 62             # pixel in the denim this light (denim L* ~40) near the hand = fingertip
+TIP_REACH = 14
 CHIN_AHEAD = 25        # chin rows: face front at least this far ahead of the neck front
 
 
@@ -201,6 +202,11 @@ def split_parts(rgba, kp, pal):
 
     near_ids = [PART_ID[n] for n, _ in PARTS if not n.endswith("_r")]
     cleanup(lab_map, fg, rgba[..., 3] > 0, near_ids)
+    # fingertips / nail highlights over the denim are light, not denim: they belong to the hand
+    hand = lab_map == PART_ID["hand_l"]
+    denim = np.isin(lab_map, [PART_ID["pelvis"], PART_ID["thigh_l"]])
+    tips = denim & (L > TIP_L) & (ndi.distance_transform_edt(~hand) <= TIP_REACH)
+    lab_map[tips] = PART_ID["hand_l"]
     outlines_to_front(lab_map, lab, near_ids)
     info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1), "hem_y": hem_y,
             "sleeve_line": [round(float(a), 4), round(float(b), 1)], "sleeve_seam_rows": [inl, rows],
@@ -220,17 +226,6 @@ def far_copy(near, shade=FAR_SHADE):
     return cut
 
 
-def far_copies(rgba, lab_map):
-    """far (right) limbs = near (left) limb cut-outs, darkened."""
-    out = {}
-    band = silhouette_band(rgba)
-    for limb in LIMBS:
-        cut = rgba.copy()
-        cut[..., 3] = np.where(lab_map == PART_ID[f"{limb}_{NEAR}"], rgba[..., 3], 0)
-        out[f"{limb}_{FAR}"] = far_copy(dehalo(cut, band))
-    return out
-
-
 def run(character):
     char_dir = config.CHARACTERS / character
     rgba, kp, pal = load(char_dir)
@@ -240,7 +235,8 @@ def run(character):
     for limb in LIMBS:                                    # far limbs share the near limb's stats
         stats[f"{limb}_{FAR}"] = {**stats[f"{limb}_{NEAR}"], "copy_of": f"{limb}_{NEAR}", "shade": FAR_SHADE}
     save(char_dir, VIEW, rgba, lab_map, head_pivots(kp, info, lab_map, PART_ID["ponytail"]),
-         info, issues, stats, PARTS, PARENT, PART_ID, COLOURS, cutouts=far_copies(rgba, lab_map))
+         info, issues, stats, PARTS, PARENT, PART_ID, COLOURS,
+         derived={f"{limb}_{FAR}": (f"{limb}_{NEAR}", far_copy) for limb in LIMBS})
     print("info:", info)
     for n, _ in near_parts:
         s = stats[n]

@@ -154,7 +154,9 @@ def run(character, view="front"):
         if behind:
             raise ValueError(f"{name} cannot extend under {behind}: they are drawn behind it")
         own = masks[name]
-        cover = np.any([masks[u] for u in under], 0)
+        # only where a covering part is fully opaque: under a see-through edge (the
+        # cleaned hand's denim share) a fill would show at rest
+        cover = np.any([masks[u] & (parts[u][..., 3] == 255) for u in under if u in parts], 0)
         near = ndi.distance_transform_edt(~own) <= band
         region = near & cover & (parts[name][..., 3] == 0) & solid
         if clip_rows:
@@ -176,6 +178,7 @@ def run(character, view="front"):
         r = max(MIN_CAP_R, factor * half_w)
         disc = (xx - px) ** 2 + (yy - py) ** 2 <= r * r
         region = disc & np.any([masks[i] for i in into], 0) & (parts[name][..., 3] == 0) & solid
+        region &= np.all([parts[i][..., 3] == 255 for i in into if i in parts], 0)
         if not region.any():
             continue
         parts[name][region] = art[region]                       # identical at rest
