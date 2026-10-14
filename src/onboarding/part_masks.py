@@ -72,6 +72,10 @@ OUTLINE_DE = 15        # outline pixel: colour this far (ΔE) from its part's me
 OUTLINE_REACH = 2      # ... and within this many px of a part drawn in front → goes to that part
 BLEND_DE = 6           # anti-aliased blend next to a front part: smaller colour difference ...
 BLEND_REACH = 2        # ... within this many px
+HALO_SOLID_A = 200     # dehalo: pixels at least this opaque count as the part's true colour
+HALO_DL = 20           # edge pixel this much lighter than the part = background halo
+HALO_RAMP = 25         # ... fully transparent once this much lighter again
+HALO_BAND = 5          # outer band (px) of a part that may hold background halo (seen: 3-4 px)
 
 
 def load(char_dir):
@@ -338,6 +342,31 @@ def validate(lab_map, parts=PARTS, part_id=PART_ID):
     return issues, stats
 
 
+def silhouette_band(rgba):
+    """pixels within HALO_BAND px of the drawing's true background."""
+    return ndi.distance_transform_edt(rgba[..., 3] > 0) <= HALO_BAND
+
+
+def dehalo(cut, silhouette_band):
+    """Edge pixels much lighter than the part — cream background left around dark denim /
+    hair by the sheet cleaner — fade to transparent (the lighter, the more). Over the cream
+    background nothing changes visibly; over another part (near leg over the darker far
+    leg) the thin white line disappears and the artist's dark outline becomes the edge.
+    Only next to the drawing's true background, never at boundaries between parts (eye
+    whites next to the hair are not halo); light parts (tee, sneakers) are never affected."""
+    a = cut[..., 3]
+    if not (a > 0).any():
+        return cut
+    L = rgb2lab(cut[..., :3] / 255.0)[..., 0]
+    interior = ndi.binary_erosion(a >= HALO_SOLID_A, iterations=HALO_BAND)
+    if interior.sum() < 20:
+        return cut
+    med = np.median(L[interior])
+    w = np.clip((L - (med + HALO_DL)) / HALO_RAMP, 0, 1) * (silhouette_band & ~interior)
+    cut[..., 3] = (a * (1 - w)).astype(np.uint8)
+    return cut
+
+
 def head_pivots(kp, info, lab_map, tail_id):
     pivots = dict(kp)
     pivots["neck_top"] = np.array(info["neck_top"])              # head turns here, not at the shoulders
@@ -357,6 +386,7 @@ def save(char_dir, view, rgba, lab_map, pivots, info, issues, stats, parts, pare
     (side view: far limbs = darkened copies of the near ones)."""
     out = char_dir / "parts" / view
     out.mkdir(parents=True, exist_ok=True)
+    band = silhouette_band(rgba)
     save_image(lab_map, out / "labels.png")
     for name, _ in parts:
         if cutouts and name in cutouts:
@@ -364,6 +394,7 @@ def save(char_dir, view, rgba, lab_map, pivots, info, issues, stats, parts, pare
         else:
             cut = rgba.copy()
             cut[..., 3] = np.where(lab_map == part_id[name], rgba[..., 3], 0)
+            cut = dehalo(cut, band)
         save_image(cut, out / f"{name}.png")
     meta = {"view": view, "canvas": list(rgba.shape[1::-1]), "info": info, "issues": issues,
             "layer_order": [n for n, _ in parts],

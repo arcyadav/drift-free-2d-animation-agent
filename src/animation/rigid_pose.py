@@ -45,9 +45,11 @@ def load_rig(char_dir, view="front", sub=""):
     return meta, imgs
 
 
-def world_transforms(meta, angles):
+def world_transforms(meta, angles, root=None):
+    """root: optional 3x3 applied to every root part (moves the whole body in the world)."""
     parts = meta["parts"]
     cache = {}
+    base = np.eye(3) if root is None else root
 
     def T(name):
         if name in cache:
@@ -55,15 +57,18 @@ def world_transforms(meta, angles):
         p = parts[name]
         R = np.eye(3)
         R[:2] = cv2.getRotationMatrix2D(tuple(p["pivot"]), angles.get(name, 0.0), 1.0)
-        cache[name] = (T(p["parent"]) if p["parent"] else np.eye(3)) @ R
+        cache[name] = (T(p["parent"]) if p["parent"] else base) @ R
         return cache[name]
 
     return {n: T(n) for n in parts}
 
 
-def _sprite(img):
-    """part → (premultiplied float crop of its non-transparent box, x0, y0); cached."""
-    key = id(img)
+def _sprite(img, scale=1.0):
+    """part → (premultiplied float crop of its non-transparent box, x0, y0, scale); cached.
+    When the camera shrinks the character, the crop is pre-shrunk with area averaging —
+    a bilinear warp alone would skip pixels and stair-step every edge."""
+    scale = round(float(scale), 3)
+    key = (id(img), scale if scale < 0.95 else 1.0)
     hit = _SPRITES.get(key)
     if hit is None or hit[0] is not img:          # ids get reused once an image is freed
         ys, xs = np.where(img[..., 3] > 0)
@@ -73,7 +78,13 @@ def _sprite(img):
             y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
             crop = img[y0:y1, x0:x1].astype(np.float32)
             crop[..., :3] *= crop[..., 3:4] / 255      # premultiplied: no dark fringes when rotated
-            sp = (crop, int(x0), int(y0))
+            s = key[1]
+            if s < 1.0:
+                h, w = crop.shape[:2]
+                nw, nh = max(1, int(round(w * s))), max(1, int(round(h * s)))
+                crop = cv2.resize(crop, (nw, nh), interpolation=cv2.INTER_AREA)
+                s = (nw / w + nh / h) / 2
+            sp = (crop, int(x0), int(y0), s)
         _SPRITES[key] = hit = (img, sp)           # keeping img alive pins its id
     return hit[1]
 
@@ -81,19 +92,26 @@ def _sprite(img):
 _SPRITES = {}
 
 
-def render(meta, imgs, angles, bg=(255, 255, 255)):
-    """warp each part only inside its own bounding box (≈30x faster than full-canvas warps)."""
-    W, H = meta["canvas"]
-    Ts = world_transforms(meta, angles)
-    out = np.empty((H, W, 3), np.float32)
-    out[:] = bg
+def render(meta, imgs, angles, bg=(255, 255, 255), root=None, camera=None, size=None, canvas=None):
+    """warp each part only inside its own bounding box (≈30x faster than full-canvas warps).
+    root: body placement in the world; camera: world → screen 3x3 (scale + pan);
+    size: (W, H) of the output; canvas: background image to draw onto."""
+    W, H = size or meta["canvas"]
+    Ts = world_transforms(meta, angles, root)
+    cam = np.eye(3) if camera is None else camera
+    cam_scale = float(np.sqrt(abs(np.linalg.det(cam[:2, :2]))))
+    if canvas is not None:
+        out = canvas.astype(np.float32).copy()
+    else:
+        out = np.empty((H, W, 3), np.float32)
+        out[:] = bg
     for n in meta["layer_order"]:
-        sp = _sprite(imgs[n])
+        sp = _sprite(imgs[n], cam_scale)
         if sp is None:
             continue
-        crop, x0, y0 = sp
+        crop, x0, y0, s = sp
         h, w = crop.shape[:2]
-        M = Ts[n] @ np.array([[1, 0, x0], [0, 1, y0], [0, 0, 1]], float)
+        M = cam @ Ts[n] @ np.array([[1 / s, 0, x0], [0, 1 / s, y0], [0, 0, 1]], float)
         corners = M[:2] @ np.array([[0, w, 0, w], [0, 0, h, h], [1, 1, 1, 1]], float)
         bx0, by0 = np.floor(corners.min(1)).astype(int) - 1
         bx1, by1 = np.ceil(corners.max(1)).astype(int) + 2

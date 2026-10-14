@@ -25,7 +25,8 @@ from skimage.morphology import disk
 from src import config
 from src.onboarding.part_masks import (DARK_L, HAIR_MIN_PX, HAIR_OPEN, EAR_MIN_PX, CROTCH_FRAC,
                                        beyond, classify, cleanup, head_pivots, jaw_line,
-                                       outlines_to_front, save, scrunchie, side, validate)
+                                       dehalo, outlines_to_front, save, scrunchie, side,
+                                       silhouette_band, validate)
 
 VIEW = "side_left"
 NEAR, FAR = "l", "r"
@@ -212,8 +213,9 @@ def far_copy(near, shade=FAR_SHADE):
     """far limb = near limb, darker, shrunk 2 px: at rest it sits exactly under the near
     limb, and its edge would otherwise show through the near limb's soft outline."""
     cut = near.copy()
-    keep = ndi.binary_erosion(cut[..., 3] == 255, iterations=FAR_SHRINK)
-    cut[~keep, 3] = 0
+    # blur the edge first, then cut further inside: smooth contour, ~FAR_SHRINK px smaller
+    a = ndi.gaussian_filter(cut[..., 3].astype(np.float32) / 255, FAR_SHRINK)
+    cut[..., 3] = (np.clip((a - 0.78) / 0.12, 0, 1) * 255).astype(np.uint8)
     cut[..., :3] = (cut[..., :3] * shade).astype(np.uint8)
     return cut
 
@@ -221,10 +223,11 @@ def far_copy(near, shade=FAR_SHADE):
 def far_copies(rgba, lab_map):
     """far (right) limbs = near (left) limb cut-outs, darkened."""
     out = {}
+    band = silhouette_band(rgba)
     for limb in LIMBS:
         cut = rgba.copy()
         cut[..., 3] = np.where(lab_map == PART_ID[f"{limb}_{NEAR}"], rgba[..., 3], 0)
-        out[f"{limb}_{FAR}"] = far_copy(cut)
+        out[f"{limb}_{FAR}"] = far_copy(dehalo(cut, band))
     return out
 
 

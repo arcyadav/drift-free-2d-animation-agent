@@ -1,23 +1,23 @@
 {
   "view": "front",
   "added_px": {
-    "foot_r": 3308,
-    "foot_l": 3236,
-    "leg_r": 8288,
-    "leg_l": 4258,
-    "pelvis": 4523,
-    "neck": 4605,
-    "torso": 7614,
-    "head": 7732,
-    "head_hair": 282,
+    "foot_r": 3215,
+    "foot_l": 3143,
+    "leg_r": 8063,
+    "leg_l": 4215,
+    "pelvis": 4461,
+    "neck": 4530,
+    "torso": 7426,
+    "head": 7481,
+    "head_hair": 206,
     "strand_r": 0,
     "ponytail": 0,
-    "upper_arm_r": 2899,
-    "forearm_r": 557,
-    "hand_r": 133,
-    "upper_arm_l": 2340,
-    "forearm_l": 617,
-    "hand_l": 203
+    "upper_arm_r": 2837,
+    "forearm_r": 529,
+    "hand_r": 119,
+    "upper_arm_l": 2265,
+    "forearm_l": 599,
+    "hand_l": 197
   },
   "underlap": [
     [

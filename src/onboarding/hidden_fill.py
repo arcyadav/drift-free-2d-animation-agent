@@ -28,6 +28,7 @@ from scipy import ndimage as ndi
 from skimage.color import rgb2lab
 
 from src import config
+from src.onboarding.part_masks import silhouette_band
 from src.utils.io import save_image, save_text
 
 # per view. UNDERLAP: (part, extends under these parts, band px, outline on new edge, clip_rows)
@@ -80,8 +81,8 @@ RULES = {
             ("upper_arm_l", "forearm_l", ["forearm_l"], 1.0),
             ("hand_l", "hand_l", ["forearm_l"], 1.0),
             ("forearm_l", "hand_l", ["hand_l"], 1.0),
-            ("thigh_l", "thigh_l", ["pelvis"], 0.8),
-            ("thigh_l", "shin_l", ["shin_l"], 0.8),               # knee: thigh end over the shin
+            ("thigh_l", "thigh_l", ["pelvis"], 1.0),
+            ("thigh_l", "shin_l", ["shin_l"], 1.4),               # knee: wide jeans need a big cap
         ],
     },
 }
@@ -138,7 +139,9 @@ def run(character, view="front"):
     ids = {n: p["id"] for n, p in meta["parts"].items()}
     masks = {n: labels == i for n, i in ids.items()}
     fg = labels > 0
-    solid = ndi.binary_erosion(art[..., 3] == 255, iterations=1)   # fills never reach the soft rim
+    # fills never reach the soft rim, nor the outer band whose background halo the cut-outs
+    # fade out (a fill there would show through the faded edge)
+    solid = ndi.binary_erosion(art[..., 3] == 255, iterations=1) & ~silhouette_band(art)
     copies = {n: p for n, p in meta["parts"].items() if p.get("copy_of")}   # far limbs (side view)
     parts = {n: np.asarray(Image.open(d / f"{n}.png").convert("RGBA")).copy()   # cut-outs (clean rims)
              for n in ids if n not in copies}
