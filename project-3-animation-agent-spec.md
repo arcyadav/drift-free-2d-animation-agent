@@ -2,7 +2,7 @@
 
 Author: Archana Yadav
 Duration: 10 days
-Status: Draft v3.5 (rig-based; mirroring allowed for right-facing views; layered faces; 24 fps on 2s; local open-source LLM/VLM; deployed on HF Spaces)
+Status: Draft v3.6 (rig-based; classical onboarding — no SAM / no inpainting model; hand-designed walk; mirroring allowed for right-facing views; layered faces; 24 fps on 2s; local open-source LLM/VLM; deployed on HF Spaces)
 
 ---
 
@@ -108,7 +108,7 @@ flowchart TD
     O -- no --> S1[Sheet Cleaner<br/>remove bg + specks, crop,<br/>drop labels, normalise scale]
     S1 --> S2{View Checker<br/>views consistent?<br/>same outfit + scale?}
     S2 -- issue --> S2a[Flag view to user<br/>ask for regeneration] --> S2
-    S2 -- ok --> R1[Rigger<br/>pose keypoints + SAM part masks<br/>incl. ponytail + front strands]
+    S2 -- ok --> R1[Rigger<br/>pose keypoints + part masks<br/>palette x skeleton cuts<br/>incl. ponytail + front strands]
     R1 --> R2[Inpaint hidden regions<br/>torso behind arms, neck under hair]
     R2 --> R3[Build mesh + skeleton<br/>joint limits, layer order,<br/>hair bone chains]
     R1 --> FC[Face Cutter<br/>split each face image into<br/>eyes / brows / mouth layers per view]
@@ -217,7 +217,7 @@ actions/wave/
 | idle (breathing, blink, hair) | front | between shots | code keyframes | core |
 | wave | front | bye to mom | own video / Pexels | core |
 | look_down | front / 3/4 | sad moment | code keyframes | core |
-| walk | side | roadside scene | Mixamo (+ foot lock) | core |
+| walk | side | roadside scene | code keyframes: natural gait built from foot paths (+ foot lock); Mixamo import kept as `walk_mixamo` | core |
 | turn | view swap | connects shots | view graph (10.1) | core |
 | nod | front | dialogue | code keyframes | stretch |
 | search_pockets | front | lost-phone moment | own video | stretch |
@@ -281,12 +281,12 @@ side_R ── 3q_R ── front ── 3q_L ── side_L ── back
 | Orchestrator | code + small LLM | routes request, holds state, onboarding vs animate | library lookup |
 | Sheet Cleaner | code (no model) | clean bg, crop, normalise scale; faces reuse their view's transform | border flood-fill stopped by outlines, trapped-pocket removal, colour unmixing for halo, connected components |
 | View Checker | rules + small VLM | catch inconsistent views; create mirrored views | DINOv2 sim, colour/height stats, VLM yes/no questions, flip |
-| Rigger | tool chain | keypoints, part + hair masks, inpaint, mesh | DWPose, SAM, SD inpaint, Delaunay mesh |
+| Rigger | tool chain | keypoints, part + hair masks, hidden-area fill, joint caps | RTMPose (rtmlib, CPU); palette regions x skeleton cuts; classical fill (no SAM / SD — flat-coloured art does not need them; kept as fallback) |
 | Face Cutter | tool chain | align face images, cut eyes/brows/mouth layers per view | face landmarks, SAM, alignment |
 | Rig Tester | rules | stress-test rig, propose fixes | test-pose renders, stretch metrics |
 | Planner | rules first, small LLM fallback | text → {action, expression, view, speed, direction, loop} JSON | keyword parser, JSON-schema constrained decoding, library enums |
 | Retargeter | code | motion → rig angles, joint limits | numpy |
-| Animator | code | ARAP mesh deform, view-graph turns, foot lock (IK), hair springs, face layers | own code (ref: Animated Drawings) |
+| Animator | code | layered rigid parts + soft joints (linear blend skinning at knees), view-graph turns, foot lock (2-bone IK), hair springs, face layers | own code (ref: Animated Drawings); ARAP mesh = optional polish |
 | Stylizer (opt.) | diffusion | hand-drawn feel | SD 1.5 img2img + ControlNet |
 | Critic | metrics + small VLM | score frames, label failure type | DINOv2, LPIPS, rig joint error, VLM yes/no questions |
 | Fix Selector | rules (no LLM) | pick fix for failure + stage to re-run | see 12.2 |
@@ -433,10 +433,10 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 | Day | Work | Checkpoint |
 |---|---|---|
 | 1 | Generate turnaround, A-pose side, face images (3 views), hands; collect motion clips | Assets ready |
-| 2 | Sheet Cleaner + View Checker + keypoints + SAM part/hair masks | |
+| 2 | Sheet Cleaner + View Checker + keypoints + part/hair masks (front + side) | ✅ |
 | 3 | Inpaint hidden parts, mesh + skeleton, one wave clip | First clip |
 | 4 | Rig Tester + auto-fix loop; ponytail chain; Face Cutter | Onboarding done |
-| 5 | Action library, retargeter, walk (+ foot lock) / look_down / idle | |
+| 5 | Action library, retargeter, walk (+ foot lock) / look_down / idle | walk ✅ |
 | 6 | Expression recipes + blinks, hair springs, turn via view graph; basic metric critic (log-only) | |
 | 7 | Planner (rule parser + local LLM, constrained JSON) + Orchestrator; planner test set; **first Gradio app deployed to HF Spaces** | End-to-end + live URL |
 | 8 | Full Critic (identity, flicker, VLM) + tune thresholds on labelled set + Fix Selector with stage routing; optional stylize | Self-fixing loop |
@@ -445,12 +445,24 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 
 ---
 
+## 16.1 Implementation notes (what the build taught us)
+
+**Onboarding without image models.** The art is flat-coloured, so classical image processing is enough and runs in seconds on CPU:
+- Part masks = palette regions crossed with cuts along the skeleton (shoulder→hip line, perpendicular cuts at elbow / wrist / knee, waist, jaw line, throat → jaw in profile). Every cut-out is checked by rules and by regression tests (`tests/`).
+- Outlines belong to the part drawn in front; edge pixels of the arm (drawn over the jeans) are **unmixed** per pixel (p = (1-b)·arm + b·denim): the arm keeps its share, the jeans get the rest — exact at rest, no blue fringe when the arm swings.
+- Hidden areas: underlap (a part continues under the part in front, local flat colour) + joint caps (discs that copy the art under them) — invisible at rest, tested against the original drawing.
+- Side view: far arm / leg = shadow-tone copies of the near limbs; the torso is a child of the pelvis and bends at the waist.
+
+**Motion.** The Mixamo walk (adult, long stride, bent arms) looked stiff on this character, and keyed cartoon up/down looked like lunges. The library walk is built from foot paths like a real gait: the support leg stays nearly straight and the body vaults over it, falls forward (5° lean) into each heel strike, the back heel lifts at push-off; soft knees via linear blend skinning. Measured: planted-foot slide 4.7 → 0.0 px/frame with the foot lock (`outputs/walk.json`).
+
+**Lesson for the evaluation:** every visual fix was found by looking at close-ups of rendered frames and then turned into an automatic check — the same loop the Critic automates.
+
 ## 17. Risks
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | Inconsistent views from image generator | Medium | View Checker; regenerate with A-pose as reference |
-| Bad part masks on anime proportions | Medium | A-pose input, SAM with keypoint prompts, Rig Tester loop |
+| Bad part masks on anime proportions | Medium | palette x skeleton cuts with rule checks + regression tests; Rig Tester loop; SAM only as fallback |
 | Face layers misaligned between images | Medium | align to neutral head with landmarks; flat colours hide small seams |
 | Inpainted hidden areas look wrong | Low–Med | flat colours; moderate arm motion |
 | Looks "puppet-y" | Medium | mesh deform, on-2s timing, easing, secondary motion |
