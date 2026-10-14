@@ -63,6 +63,8 @@ EAR_MIN_PX = 40        # skin island inside the hair this big = ear
 TIE_A = 12             # scrunchie: dark but red (a* ≈ 17; hair a* ≈ 3)
 CROTCH_FRAC = 0.10     # crotch below hips, as fraction of hip→knee
 MIN_PART_PX = 150
+LIGHT_L = 72           # L* above this is never denim (denim ~40)
+TEE_TOUCH = 6          # tee-coloured px this close to the tee body stay tee (never jeans)
 MIN_GAP_PX = 2         # background run this wide = arm separated from body
 JAW_L = 50             # chin outline is mid-dark (L* ≈ 32), neck shadow ≈ 60
 STRAY_FRAC = 0.10      # small pieces (< this share of a part) ...
@@ -187,6 +189,10 @@ def split_parts(rgba, kp, pal):
     # jeans zone: stitching, pockets and fly lines inside the denim count as jeans
     jeans = body & (cls == ci["jeans"])
     jeans = ndi.binary_fill_holes(ndi.binary_closing(jeans, disk(5))) & body & (cls != ci["skin"])
+    # the gap-closing must not swallow tee hem bits at the waist: tee-coloured pixels
+    # touching the tee are tee (else they float off with the jeans when the body leans)
+    light = lab[..., 0] > LIGHT_L                              # tee, or white sneaker-like hem bits
+    jeans &= ~(((cls == ci["tee"]) | light) & ndi.binary_dilation(tee_body, iterations=TEE_TOUCH))
     ankle_y = min(kp["l_ankle"][1], kp["r_ankle"][1])
     shoes = body & ~jeans & (yy > ankle_y)                       # white sneakers ≈ tee colour
     upper = body & ~jeans & ~shoes                               # tee, skin, outlines
@@ -480,6 +486,8 @@ def head_pivots(kp, info, lab_map, tail_id):
         top = ys < ys.min() + 15
         pivots["scrunchie"] = np.array([xs[top].mean(), ys[top].mean()])
     pivots["strand_top"] = np.array(info["strand_top"]) if info.get("strand_top") else pivots["neck_top"]
+    if info.get("waist"):
+        pivots["waist"] = np.array(info["waist"])
     return pivots
 
 

@@ -23,7 +23,7 @@ from skimage.color import rgb2lab
 from skimage.morphology import disk
 
 from src import config
-from src.onboarding.part_masks import (DARK_L, HAIR_MIN_PX, HAIR_OPEN, EAR_MIN_PX, CROTCH_FRAC,
+from src.onboarding.part_masks import (LIGHT_L, TEE_TOUCH, DARK_L, HAIR_MIN_PX, HAIR_OPEN, EAR_MIN_PX, CROTCH_FRAC,
                                        beyond, classify, cleanup, head_pivots, jaw_line,
                                        outlines_to_front, save, scrunchie, side, validate)
 
@@ -35,12 +35,12 @@ PARTS = [
     ("foot_r", "r_ankle"), ("shin_r", "r_knee"), ("thigh_r", "r_hip"),
     ("upper_arm_r", "r_shoulder"), ("forearm_r", "r_elbow"), ("hand_r", "r_wrist"),
     ("pelvis", "pelvis"), ("foot_l", "l_ankle"), ("shin_l", "l_knee"), ("thigh_l", "l_hip"),
-    ("neck", "neck"), ("torso", "pelvis"), ("head", "neck_top"), ("head_hair", "neck_top"),
+    ("neck", "neck"), ("torso", "waist"), ("head", "neck_top"), ("head_hair", "neck_top"),
     ("strand_l", "strand_top"),
     ("upper_arm_l", "l_shoulder"), ("forearm_l", "l_elbow"), ("hand_l", "l_wrist"),
     ("ponytail", "scrunchie"),
 ]
-PARENT = {"torso": None, "pelvis": None, "neck": "torso", "head": "neck",
+PARENT = {"torso": "pelvis", "pelvis": None, "neck": "torso", "head": "neck",   # spine sits on the pelvis
           "head_hair": "head", "ponytail": "head", "strand_l": "head",
           **{f"{a}_{s}": p for s in "lr" for a, p in
              (("upper_arm", "torso"), ("forearm", f"upper_arm_{s}"), ("hand", f"forearm_{s}"),
@@ -65,6 +65,7 @@ TIP_REACH = 14
 STRAND_L = 45          # front strand: dark hair pixels
 STRAND_HALF_W = 3.5    # ... thin (half-width in px) when growing up to its root
 STRAND_MIN_PX = 120
+WAIST_BAND = 22        # px below the jeans' top where tee bits may sit on the jeans
 CHIN_AHEAD = 25        # chin rows: face front at least this far ahead of the neck front
 
 
@@ -179,6 +180,10 @@ def split_parts(rgba, kp, pal):
     body = fg & (lab_map == 0) & ~(head_zone & (yy < collar_y))
     jeans = body & (cls == ci["jeans"])
     jeans = ndi.binary_fill_holes(ndi.binary_closing(jeans, disk(5))) & body & (cls != ci["skin"])
+    # the gap-closing must not swallow tee hem bits at the waist: tee-coloured pixels
+    # touching the tee are tee (else they float off with the jeans when the body leans)
+    light = lab[..., 0] > LIGHT_L                              # tee, or white sneaker-like hem bits
+    jeans &= ~(((cls == ci["tee"]) | light) & ndi.binary_dilation(tee_body, iterations=TEE_TOUCH))
     shoes = body & ~jeans & (yy > kp["l_ankle"][1])
     upper = body & ~jeans & ~shoes
 
@@ -199,6 +204,11 @@ def split_parts(rgba, kp, pal):
     lab_map[upper & ~arm] = PART_ID["torso"]
 
     hip, knee, ankle = kp["l_hip"], kp["l_knee"], kp["l_ankle"]
+    # waist = where the torso bends on the pelvis: top of the jeans, middle of the body
+    # (bending at the hip joint instead slid the tee over the jeans: a pinched waist)
+    top = int(np.where(jeans[:, int(round(hip[0]))])[0].min())
+    row = jeans[top + 4]
+    waist = [round(float(np.where(row)[0].mean()), 1), float(top)]
     crotch_y = hip[1] + CROTCH_FRAC * (knee[1] - hip[1])
     lab_map[jeans & (yy < crotch_y)] = PART_ID["pelvis"]
     leg = jeans & (yy >= crotch_y)
@@ -209,6 +219,18 @@ def split_parts(rgba, kp, pal):
 
     near_ids = [PART_ID[n] for n, _ in PARTS if not n.endswith("_r")]
     cleanup(lab_map, fg, rgba[..., 3] > 0, near_ids)
+    # anything above the denim's top edge in its column is tee (the tee hem's back corner
+    # and its outline were left on the jeans and floated off when the body leaned)
+    denim = cls == ci["jeans"]
+    pel = lab_map == PART_ID["pelvis"]
+    cols = np.where(pel.any(0))[0]
+    top = np.full(W, H, int)
+    for c in cols:
+        d = np.where(denim[:, c] & pel[:, c])[0]
+        if len(d):
+            top[c] = d.min()
+    near_waist = yy < waist[1] + WAIST_BAND                    # only the waistband, not the curve below
+    lab_map[pel & (yy < top[None, :] - 1) & near_waist] = PART_ID["torso"]
     # fingertips / nail highlights over the denim are light, not denim: they belong to the hand
     hand = lab_map == PART_ID["hand_l"]
     denim = np.isin(lab_map, [PART_ID["pelvis"], PART_ID["thigh_l"]])
@@ -218,7 +240,7 @@ def split_parts(rgba, kp, pal):
     strand_top = front_strand(lab_map, L, fg, kp, xx, yy)
     info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1), "hem_y": hem_y,
             "sleeve_line": [round(float(a), 4), round(float(b), 1)], "sleeve_seam_rows": [inl, rows],
-            "throat": throat.round(1).tolist(), "jaw_back": back.round(1).tolist(), "scrunchie": tie,
+            "waist": waist, "throat": throat.round(1).tolist(), "jaw_back": back.round(1).tolist(), "scrunchie": tie,
             "neck_top": neck_top.round(1).tolist(), "strand_top": strand_top}
     return lab_map, info
 

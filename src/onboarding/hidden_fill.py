@@ -31,8 +31,8 @@ from src import config
 from src.onboarding.part_masks import silhouette_band
 from src.utils.io import save_image, save_text
 
-# per view. UNDERLAP: (part, extends under these parts, band px, outline on new edge, clip_rows)
-#   clip_rows: stay within the part's own top..bottom rows (tee must not grow below its hem)
+# per view. UNDERLAP: (part, extends under these parts, band px, outline on new edge, clip)
+#   clip: True = stay within the part's own rows; "hem" = never below its own hem line
 # CAPS: (part on top, pivot of, disc reaches into these parts, radius = half limb width × factor)
 RULES = {
     "front": {
@@ -64,7 +64,7 @@ RULES = {
     # side: the near arm swings over the torso and pelvis, the near leg over the pelvis
     "side_left": {
         "underlap": [
-            ("torso", ["upper_arm_l", "forearm_l"], 140, True, True),
+            ("torso", ["upper_arm_l", "forearm_l"], 140, True, "hem"),
             ("torso", ["ponytail", "head_hair"], 15, False, False),
             ("pelvis", ["forearm_l", "hand_l", "torso"], 110, False, True),
             ("pelvis", ["thigh_l"], 45, False, False),
@@ -89,6 +89,7 @@ RULES = {
 OUTLINE_PX = 2
 OUTLINE_DL = 15        # outline pixels: L* at least this much darker than the part's median
 MIN_CAP_R = 10
+FILL_DE = 18           # fill source pixels: within this colour distance of the part's median
 BORDER_SKIP = 5        # ignore the part's pixels this close to the covering part (outline, shadow)
 RING_PX = 40           # colour of a hidden patch = median of clean pixels within this distance
 
@@ -102,9 +103,12 @@ def load(char_dir, view):
 
 
 def own_colours(art, own, L):
-    """flat-fill source: the part's pixels minus its dark outline."""
-    Lm = np.median(L[own])
-    src = own & (L > Lm - OUTLINE_DL)
+    """flat-fill source: the part's pixels that look like the part — close to its typical
+    colour. Excludes its dark outline AND stray light bits (tee hem leftovers at the jeans'
+    edge gave the hidden waist a white patch with a black curve)."""
+    lab = rgb2lab(art[..., :3] / 255.0)
+    med = np.median(lab[own], 0)
+    src = own & (np.linalg.norm(lab - med, axis=-1) < FILL_DE)
     return src if src.sum() > 50 else own
 
 
@@ -159,7 +163,15 @@ def run(character, view="front"):
         cover = np.any([masks[u] & (parts[u][..., 3] == 255) for u in under if u in parts], 0)
         near = ndi.distance_transform_edt(~own) <= band
         region = near & cover & (parts[name][..., 3] == 0) & solid
-        if clip_rows:
+        if clip_rows == "hem":
+            # never below the part's own hem: per column its lowest pixel, columns hidden
+            # under the arm interpolated from their neighbours (the tee must not hang
+            # below its hem behind the arm)
+            cols = np.where(own.any(0))[0]
+            low = np.array([np.where(own[:, c])[0].max() for c in cols])
+            hem = np.interp(np.arange(own.shape[1]), cols, low)
+            region &= yy <= hem[None, :] + 1
+        elif clip_rows:
             rows = np.where(own.any(1))[0]
             region &= (yy >= rows.min()) & (yy <= rows.max())
         if not region.any():
