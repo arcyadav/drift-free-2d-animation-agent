@@ -62,7 +62,9 @@ def two_bone_ik(hip, target, l1, l2, forward_x):
 
 
 class Walker:
-    def __init__(self, character, action="walk", view="side_left", strands=False):
+    def __init__(self, character, action="walk", view="side_left", strands=False, speed=1.0,
+                 mirror=False):
+        self.speed, self.mirror = speed, mirror          # mirror: walk to the right (view graph)
         self.char_dir = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char_dir, view, "filled")
         self.rt = Retargeter(self.meta, load_motion(action), facing="left")
@@ -94,7 +96,7 @@ class Walker:
         out = []
         dt = ON_TWOS / FPS
         for k in range(0, n_frames, ON_TWOS):
-            t = k / FPS
+            t = k / FPS * self.speed
             world = self.rt.world_deltas(t)
             off = self.rt.root_offset(t)
             # ---- foot lock ----
@@ -170,7 +172,7 @@ class Walker:
             root = np.array([[1, 0, off[0]], [0, 1, off[1]], [0, 0, 1]])
             img = rigid_pose.render(self.meta, self.imgs, local, root=root, camera=cam,
                                     size=(OUT_W, OUT_H), canvas=canvas, bends=BENDS)
-            writer.append_data(img)
+            writer.append_data(img[:, ::-1] if self.mirror else img)
         writer.close()
         rep = {"frames": len(frames), "fps": FPS, "on_twos": True, "seconds": seconds,
                "foot_slide_px": {k: {"mean": round(float(np.mean(v)), 2) if v else 0.0,

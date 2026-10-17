@@ -457,6 +457,12 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 
 **Lesson for the evaluation:** every visual fix was found by looking at close-ups of rendered frames and then turned into an automatic check — the same loop the Critic automates.
 
+**Planner (built).** Rules first, `qwen2.5:3b` (Ollama, temperature 0, JSON schema with library enums)
+only for the slots the rules leave empty, then validate → repair → log. On the 40-request test set
+(`tests/planner_cases.json`): rules only 88% of requests fully right (no model call), rules + LLM 98%
+(model called for 29 of 40, ~5 s each on CPU, cached). Caveat: the test set was written by the developer
+alongside the rules; a held-out set written by someone else is the fairer measure.
+
 ## 17. Risks
 
 | Risk | Likelihood | Mitigation |
@@ -478,12 +484,35 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 ---
 
 ## 18. Future work
-- Lip sync from audio (mouth layer swaps — already supported by layered faces)
-- Props attached to hand joints (e.g. phone)
-- Backgrounds + scene compositing
-- Story script → shot list → clips (scene mode)
-- More hairstyles / outfits per character
-- More face images for 3/4 and side views (smile, shocked)
+The project builds the controllable, drift-free backbone; future work adds visual richness in three
+levels, cheapest first. Identity and control always come from the rig; nothing may reintroduce drift
+unless the critic measures and rejects it.
+
+**Level 1 — polish (days, CPU):** 1080p render with the character larger in frame; a thin, even
+silhouette outline; texture-matched hidden-area fills (denim grain); soft joints at shoulders and
+elbows (as already done at the knees); a simple shading pass (shadow where an arm crosses the body).
+
+**Level 2 — richer puppetry (weeks, still no image generation)** — how studio cut-out animation works
+(Live2D / Toon Boom / Spine):
+- ARAP mesh deformation instead of rigid parts: cloth bends, the waist twists, cheeks squash in a smile
+- more drawings per part, swapped like the hands: sleeve and jeans-fold shapes, mouth shapes → lip sync
+- in-between views for smooth turns; props attached to hand joints (e.g. phone)
+- backgrounds, scene compositing and camera moves
+
+**Level 3 — hybrid: rig + AI as a constrained finishing pass (research, GPU):**
+- pose / edge-conditioned image generation (ControlNet-style) from our rendered frames + an identity
+  adapter (IP-Adapter or a LoRA trained on the character sheet) → AI adds shading and cloth detail,
+  the rig fixes pose, layout and timing
+- video-to-video stylisation constrained by our frames; the critic measures identity drift (it already
+  detected an 8–13% body widening in a commercial AI video) and rejects frames that change the character
+
+**Towards animated stories:** script → shot list → actions + expressions (the Planner is the first step);
+voice + lip sync; more actions (sit, run, pick up, turn); several characters per scene; cuts,
+transitions, music. Same character in every shot, exact control and zero cost per clip are exactly what
+multi-shot storytelling needs — and where pure AI video struggles most.
+
+**Generality:** onboarding rules currently assume tee / jeans / sneakers colour classes; a new outfit
+type needs its own garment classes (or a segmentation model as fallback). Measured by the reuse test.
 
 ## 19. Why build it
 - Real need: I want to animate my own story.

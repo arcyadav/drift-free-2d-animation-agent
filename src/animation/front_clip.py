@@ -29,12 +29,15 @@ BLINK_EVERY = (2.6, 3.8)    # s between blinks (random in this range, fixed seed
 WRIST_LAG = 0.08            # s: the hand trails the forearm by this much ...
 WRIST_GAIN = 0.9            # ... turning by this share of the forearm's recent swing ...
 WRIST_MAX = 18.0            # ... at most this many degrees
+ACTION_EYES = {"look_down": "eyes_down"}    # actions that set the gaze
+NO_BLINK = {"look_down"}                    # blinking from open eyes looks wrong while looking down
 HEAD_TILT = -3.0            # deg toward her left (viewer's right) while the hand is up
 SPRINGS = {"ponytail": dict(k=110.0, d=8.0, gain=0.9), "strand_r": dict(k=220.0, d=12.0, gain=0.6)}
 
 
 class FrontClip:
-    def __init__(self, character, action):
+    def __init__(self, character, action, expression=None, speed=1.0, seconds=None):
+        self.action, self.expression, self.speed, self.seconds = action, expression, speed, seconds
         self.char = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char, "front", "filled")
         self.m = json.loads((config.ROOT / "actions" / action / "motion.json").read_text())
@@ -64,7 +67,8 @@ class FrontClip:
             self.meta["layer_order"] = order
 
     def sample(self, t):
-        f = min(t * self.m["fps"], self.m["frames"] - 1)
+        f = t * self.speed * self.m["fps"]
+        f = f % self.m["frames"] if self.m.get("loop") else min(f, self.m["frames"] - 1)
         i0 = int(np.floor(f)); i1 = min(i0 + 1, self.m["frames"] - 1); w = f - i0
         world = {k: (1 - w) * v[i0] + w * v[i1] for k, v in self.m["deltas"].items()}
         hand = {k: v[int(round(f))] for k, v in self.m.get("hand", {}).items()}
@@ -86,8 +90,9 @@ class FrontClip:
         return out
 
     def frames(self):
-        n = int(np.ceil(self.m["frames"] / self.m["fps"] * FPS))
-        blink = self.blinks(n)
+        dur = self.seconds or self.m["frames"] / self.m["fps"] / self.speed
+        n = int(np.ceil(dur * FPS))
+        blink = self.blinks(n) if self.action not in NO_BLINK else [None] * n
         dt = ON_TWOS / FPS
         spring = {k: [0.0, 0.0] for k in SPRINGS if k in self.meta["parts"]}
         tilt, prev_head = 0.0, [0.0, 0.0]
@@ -104,9 +109,10 @@ class FrontClip:
                     vel = world[fore] - prev.get(fore, world[fore])
                     world[part] = world[fore] + float(np.clip(-WRIST_GAIN * vel, -WRIST_MAX, WRIST_MAX))
             tilt += (HEAD_TILT * up - tilt) * 0.35                  # ease into / out of the tilt
-            world["head"] = tilt
-            acc = (tilt - 2 * prev_head[-1] + prev_head[-2]) / dt ** 2
-            prev_head = [prev_head[-1], tilt]
+            tilt_head = tilt + world.get("head", 0.0)                # action's own head motion
+            world["head"] = tilt_head
+            acc = (tilt_head - 2 * prev_head[-1] + prev_head[-2]) / dt ** 2
+            prev_head = [prev_head[-1], tilt_head]
             for n_, c in SPRINGS.items():
                 if n_ not in spring:
                     continue
@@ -115,9 +121,13 @@ class FrontClip:
                     h = dt / 4
                     a = -c["k"] * st[0] - c["d"] * st[1] - c["gain"] * acc
                     st[1] += a * h; st[0] += st[1] * h
-                world[n_] = tilt + st[0]
+                world[n_] = tilt_head + st[0]
             local = to_local(self.meta, world)
-            expr = "smile" if up else "neutral"
+            # a smiling wave smiles while the hand is up; otherwise the planned expression
+            if self.expression in (None, "smile") and self.m.get("hand"):
+                expr = "smile" if up else "neutral"
+            else:
+                expr = self.expression or "neutral"
             for _ in range(ON_TWOS):
                 if len(out) < n:
                     out.append((local, hand, expr, blink[len(out)]))
@@ -142,6 +152,8 @@ class FrontClip:
             recipe = self.recipes["recipes"].get(expr, self.recipes["recipes"]["neutral"])
             for layer in FACE_LAYERS:
                 src = blink if (layer == "eyes" and blink) else recipe[layer]
+                if layer == "eyes" and not blink and self.action in ACTION_EYES:
+                    src = ACTION_EYES[self.action]
                 if (layer, src) in self.face:
                     imgs[f"face_{layer}"] = self.face[(layer, src)]
             blinks += blink == "eyes_closed"
@@ -152,10 +164,10 @@ class FrontClip:
                 "blink_closed_frames": int(blinks)}
 
 
-def run(character="protagonist", action="wave"):
-    out = config.ROOT / "outputs" / f"{action}.mp4"
+def run(character="protagonist", action="wave", expression=None, speed=1.0, seconds=None, out=None):
+    out = out or config.ROOT / "outputs" / f"{action}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    rep = FrontClip(character, action).render(str(out))
+    rep = FrontClip(character, action, expression, speed, seconds).render(str(out))
     rep.update({"character": character, "action": action})
     save_text(json.dumps(rep, indent=2), out.with_suffix(".json"))
     print(json.dumps(rep, indent=2))

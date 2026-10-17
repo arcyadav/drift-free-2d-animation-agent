@@ -1,0 +1,8 @@
+{
+  "action": "idle",
+  "view": "front",
+  "fps": 24,
+  "frames": 96,
+  "loop": true,
+  "source": "code keyframes"
+}

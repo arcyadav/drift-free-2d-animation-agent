@@ -1,0 +1,8 @@
+{
+  "action": "look_down",
+  "view": "front",
+  "fps": 24,
+  "frames": 96,
+  "loop": false,
+  "source": "code keyframes"
+}
