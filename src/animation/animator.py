@@ -37,6 +37,7 @@ GROUND = (222, 214, 200)
 SPRINGS = {"ponytail": dict(k=120.0, d=9.0, gain=0.06, trail=4.0),
            "strand_l": dict(k=260.0, d=14.0, gain=0.035, trail=2.5)}
 BENDS = [("thigh_l", "shin_l", 110), ("thigh_r", "shin_r", 110)]   # soft knees (band px)
+REACH_MARGIN = 0.998         # a locked leg may stretch to this share of its length
 HEEL_LIFT_PX = 8             # planted ankle rising more than this = heel-off → release the lock
 
 
@@ -97,8 +98,10 @@ class Walker:
             world = self.rt.world_deltas(t)
             off = self.rt.root_offset(t)
             # ---- foot lock ----
+            fk, locked = {}, []
             for s in "lr":
                 hip, _, ankle = self.chain_world(world, s, off)
+                fk[s] = ankle
                 planted = self.rt.contact(s, t)
                 if planted and anchors[s] is None and not released[s]:
                     # land where the motion puts the ankle, never below the ground
@@ -107,10 +110,23 @@ class Walker:
                     anchors[s], released[s] = None, True        # heel lifts: push off on the toe
                 if not planted:
                     anchors[s], released[s] = None, False
-                planted = planted and anchors[s] is not None
-                if planted:
+                if planted and anchors[s] is not None:
+                    locked.append(s)
+            # pelvis drop: if a locked foot is just out of the leg's reach, lower the body
+            # a little (as game engines do) instead of letting the foot slip
+            reach = (self.rt.thigh_len + self.rt.shin_len) * REACH_MARGIN
+            drop = 0.0
+            for s in locked:
+                hip = self.P[f"thigh_{s}"] + off
+                dx = anchors[s][0] - hip[0]
+                need = np.sqrt(max(reach ** 2 - dx ** 2, 0.0))
+                drop = max(drop, (anchors[s][1] - hip[1]) - need)
+            off = off + np.array([0.0, max(drop, 0.0)])
+            for s in "lr":
+                if s in locked:
+                    hip = self.P[f"thigh_{s}"] + off
                     if prev_ankle[f"raw_{s}"] is not None:
-                        slide["raw"].append(float(np.linalg.norm(ankle - prev_ankle[f"raw_{s}"])))
+                        slide["raw"].append(float(np.linalg.norm(fk[s] - prev_ankle[f"raw_{s}"])))
                     knee, ank = two_bone_ik(hip, anchors[s], self.rt.thigh_len, self.rt.shin_len,
                                             self.forward_x)
                     world[f"thigh_{s}"] = wrap(vis(knee - hip) - self.rt.rest[f"thigh_{s}"])
@@ -118,7 +134,7 @@ class Walker:
                     if prev_ankle[s] is not None:
                         slide["locked"].append(float(np.linalg.norm(ank - prev_ankle[s])))
                     prev_ankle[s] = ank
-                    prev_ankle[f"raw_{s}"] = ankle
+                    prev_ankle[f"raw_{s}"] = fk[s]
                 else:
                     prev_ankle[s] = prev_ankle[f"raw_{s}"] = None
             # ---- hair springs (driven by vertical acceleration of the head) ----

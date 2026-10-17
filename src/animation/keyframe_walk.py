@@ -35,8 +35,12 @@ STYLE = {
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.03,          # swing-foot lift at mid-swing: low, relaxed (higher kicked the thigh up)
     "swing_lag": 1.8,      # >1: the swinging foot moves forward later in the swing
-    "foot_back": 0.0,      # footprints shifted behind the hips (evens the thigh swing, but more
-                           # than ~0.02 makes the back foot unreachable: it slips)
+    "foot_back": 0.03,     # footprints sit this much behind the hips so that at heel strike the
+                           # hips are midway between the feet: legs open into a symmetric V
+                           # (= step/2 - step/2.2; the stance foot keeps moving back during the
+                           # 10% double support). Reach is guaranteed by the animator's pelvis drop.
+    "heel_from": 0.75,     # share of stance after which the back heel lifts (back leg stays
+                           # straight until just before toe-off: the V at heel strike)
     "knee_soft": 3.0,      # deg: stance knee almost straight (it vaults the body)
     # Real walking: the support leg stays nearly straight (a stilt) and the body vaults over
     # it, falling forward into the next step. Bending the support knee instead looks like a
@@ -116,7 +120,7 @@ def build(st=STYLE):
     d_soft = (THIGH + SHIN) * np.cos(np.radians(st["knee_soft"]) / 2)
 
     def heel_ramp(q):                     # push-off heel lift late in stance (also in lift below)
-        return st["heel_min"] * smooth((q - 0.6) / 0.4)
+        return st["heel_min"] * smooth((q - st["heel_from"]) / (1 - st["heel_from"]))
 
     H = np.zeros(F)
     for f in range(F):
