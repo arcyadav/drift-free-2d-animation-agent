@@ -76,7 +76,8 @@ BLEND_DE = 6           # anti-aliased blend next to a front part: smaller colour
 BLEND_REACH = 2        # ... within this many px
 MOVERS = [f"{a}_{s}" for s in "lr" for a in ("upper_arm", "forearm", "hand")]
 MOVER_LINE_REACH = 7   # px: a mover's own outline this close on the part behind ...
-MOVER_LINE_DE = 14     # ... and this close to the mover's line colour moves with it
+MOVER_LINE_DE = 14
+NOT_BLUE_B = -1.0      # b* above this = not a bluish (denim) line     # ... and this close to the mover's line colour moves with it
 UNMIX_REACH = 22       # arm pixels this close to a part behind may carry its colour (finger gaps)
 UNMIX_MIN = 0.12       # ignore tiny mixes (clean skin / outline)
 SOLID_MAX_B = 0.6      # solid copy: pixels less than 60% denim count as arm
@@ -264,6 +265,7 @@ def lines_to_movers(lab_map, lab, order_ids, mover_ids):
         behind = np.isin(lab_map, [p for p in order_ids if rank[p] < rank[mid]])
         near = ndi.distance_transform_edt(~m) <= MOVER_LINE_REACH
         cand = behind & near & (np.linalg.norm(lab - line_col, axis=-1) < MOVER_LINE_DE)
+        cand &= lab[..., 2] > NOT_BLUE_B          # an arm's line is brown: denim lines stay put
         # only line pixels connected to the mover (not a separate stroke that happens to be near)
         cl, _ = ndi.label(cand | m)
         keep = np.isin(cl, np.unique(cl[m])) & cand

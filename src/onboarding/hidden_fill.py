@@ -195,7 +195,14 @@ def run(character, view="front"):
         region &= np.all([parts[i][..., 3] == 255 for i in into if i in parts], 0)
         if not region.any():
             continue
-        parts[name][region] = art[region]                       # identical at rest
+        # copy what is drawn there at rest: the CLEANED part underneath (the raw drawing
+        # still holds the denim-tinted arm edge the cut-outs removed -> blue blob at the elbow)
+        src = art.copy()
+        for i in into:
+            if i in parts:
+                m = parts[i][..., 3] == 255
+                src[m] = parts[i][m]
+        parts[name][region] = src[region]                       # identical at rest
         added[name] += int(region.sum())
 
     from src.onboarding.part_masks_side import far_copy, outer_edge

@@ -83,6 +83,17 @@ def test_no_dark_artifacts():
             Lc = rgb2lab(cut[..., :3] / 255.0)[..., 0]
             bad = (cut[..., 3] > 128) & (art[..., 3] > 128) & (Lc < La - 30)
             assert bad.sum() < 25, f"{view}/{n}: {bad.sum()} pixels much darker than the drawing"
+    # no denim on any arm part (it travels with the arm as a blue fringe / blob)
+    for view in ("front", "side_left"):
+        for sub in ("", "filled/"):
+            for n in ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r"):
+                p = CHAR / f"parts/{view}/{sub}{n}.png"
+                if not p.exists():
+                    continue
+                im = np.asarray(Image.open(p))
+                L = rgb2lab(im[..., :3] / 255.0)
+                blue = (im[..., 3] > 40) & (L[..., 2] < -4) & (L[..., 0] < 70)
+                assert blue.sum() <= 5, f"{view}/{sub}{n}: {blue.sum()} denim-blue pixels"
     print("no dark artifacts: all checks passed")
 
 
