@@ -428,6 +428,15 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 
 ---
 
+## 15.2 Deployment as built (Oct 2026)
+Hugging Face now requires a paid PRO plan to host Gradio Spaces on CPU; static Spaces stay free. So:
+- **Permanent public URL (static Space):** https://huggingface.co/spaces/Arcyadav/drift-free-2d-animation-agent
+  — 12 requests pre-rendered by the agent (rules + local LLM), each with its plan JSON, plus how it works,
+  measured results and honest limits. Built by `deploy/build_static.py`.
+- **Live agent (viva demo):** `python app.py --share` (or `run_demo.bat`) runs the full agent incl. the
+  local LLM on the laptop and gives a public `*.gradio.live` link (72 h); `--lan` serves it on the
+  intranet. Request → clip in ~10 s on CPU.
+
 ## 16. Timeline (10 days)
 
 | Day | Work | Checkpoint |

@@ -12,3 +12,11 @@ imageio-ffmpeg
 tqdm
 rtmlib            # DWPose / RTMPose via ONNX on CPU
 onnxruntime
+
+# web app (live demo). Gradio 4.44 needs these exact pins (newer pydantic /
+# fastapi / starlette break it)
+gradio==4.44.1
+pydantic==2.10.6
+fastapi==0.112.2
+starlette<0.39
+huggingface_hub<0.26   # static showcase upload

@@ -1,4 +1,9 @@
-"""Drift-Free 2D Character Animation Agent — web demo (Gradio; Hugging Face Spaces, spec §15.1).
+"""Drift-Free 2D Character Animation Agent — live web demo (Gradio, spec §15.1).
+
+Run from the laptop (the full agent incl. the local LLM):
+    python app.py --share     public link for the viva (laptop must stay on)
+    python app.py --lan       intranet: http://<this-laptop-ip>:7860 from other devices
+A static showcase (pre-rendered clips) is published separately: deploy/build_static.py.
 
 Type a request in plain language → the Planner turns it into a plan (rules first, the local LLM
 only if available) → the Animator renders the clip on CPU from the rigged character.
@@ -70,8 +75,15 @@ with gr.Blocks(title="Drift-Free 2D Animation Agent") as demo:
             summary = gr.Markdown()
             with gr.Accordion("Plan JSON", open=False):
                 details = gr.Code(language="json")
-    go.click(run, inputs=req, outputs=[video, summary, details])
+    go.click(run, inputs=req, outputs=[video, summary, details], api_name="animate")
     req.submit(run, inputs=req, outputs=[video, summary, details])
 
 if __name__ == "__main__":
-    demo.queue(max_size=8).launch()
+    import argparse
+    ap = argparse.ArgumentParser(description="live demo: local, --lan (intranet) or --share (internet link)")
+    ap.add_argument("--share", action="store_true", help="public *.gradio.live link (valid 72 h)")
+    ap.add_argument("--lan", action="store_true", help="reachable from other devices on this network")
+    ap.add_argument("--port", type=int, default=7860)
+    a = ap.parse_args()
+    demo.queue(max_size=8).launch(share=a.share, server_name="0.0.0.0" if a.lan else "127.0.0.1",
+                                  server_port=a.port, show_api=False, show_error=True)

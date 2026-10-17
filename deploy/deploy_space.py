@@ -22,7 +22,8 @@ def stage():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
         else:
-            shutil.copytree(src, dst, ignore=lambda d, names: [n for n in names if n in SKIP or n.endswith(".pyc")])
+            shutil.copytree(src, dst, dirs_exist_ok=True,
+                            ignore=lambda d, names: [n for n in names if n in SKIP or n.endswith(".pyc")])
     shutil.copy2(ROOT / "deploy" / "space_requirements.txt", STAGE / "requirements.txt")
     shutil.copy2(ROOT / "deploy" / "space_README.md", STAGE / "README.md")
     size = sum(p.stat().st_size for p in STAGE.rglob("*") if p.is_file()) / 1e6
