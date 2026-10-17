@@ -34,7 +34,11 @@ STYLE = {
     "step": 0.66,          # ankle travel under the body during stance (leg lengths)
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.03,          # swing-foot lift at mid-swing: low, relaxed (higher kicked the thigh up)
-    "swing_lag": 1.8,      # >1: the swinging foot moves forward later in the swing
+    "swing_lag": 1.8,      # (foot-path swing, unused: the swing is keyed in joint angles)
+    "swing_knee": 50.0,    # deg: swing knee bends most early in the swing (foot clears) ...
+    "knee_peak_at": 0.35,  # ... at this share of the swing
+    "knee_straight_at": 0.85,  # ... and is fully straight from here until the heel lands
+    "thigh_reach_at": 0.8,     # thigh has swung forward to its heel-strike angle by here
     "foot_back": 0.03,     # footprints sit this much behind the hips so that at heel strike the
                            # hips are midway between the feet: legs open into a symmetric V
                            # (= step/2 - step/2.2; the stance foot keeps moving back during the
@@ -104,6 +108,29 @@ def ik(hip, ankle):
     return knee, ank
 
 
+def leg_angles(hip, knee, ank):
+    """thigh angle from vertical (+ = forward) and knee flexion (+ = shin behind), deg."""
+    v, w = knee - hip, ank - knee
+    th = np.degrees(np.arctan2(v[0], -v[1]))
+    return th, th - np.degrees(np.arctan2(w[0], -w[1]))
+
+
+def swing_pose(q, start, end, st):
+    """swing keyed like an animator: thigh swings forward and arrives by thigh_reach_at;
+    knee bends to swing_knee early (foot clears the ground), then straightens fully by
+    knee_straight_at and stays straight until the heel lands."""
+    (th0, k0), (th1, k1) = start, end
+    th = th0 + (th1 - th0) * smooth(q / st["thigh_reach_at"])
+    pk, sk, peak = st["knee_peak_at"], st["knee_straight_at"], st["swing_knee"]
+    if q < pk:
+        k = k0 + (peak - k0) * smooth(q / pk)
+    elif q < sk:
+        k = peak + (k1 - peak) * smooth((q - pk) / (sk - pk))
+    else:
+        k = k1
+    return th, k
+
+
 def ang(v):
     return float(np.degrees(np.arctan2(v[1], v[0])))
 
@@ -164,6 +191,20 @@ def build(st=STYLE):
             run_max = max(run_max, need) if q > 0.4 else need
             lift[s][f] = run_max
 
+    def stance_pose(s, f):
+        p = (f / F + phase[s]) % 1
+        a, _ = ankle_body(p, st)
+        root = np.array([0.0, H[f]])
+        knee, ank = ik(root, root * [1, 0] + a + np.array([0.0, lift[s][f]]))
+        return leg_angles(root, knee, ank)
+
+    swing_ends = {}
+    for s in "lr":
+        planted = [ankle_body((f / F + phase[s]) % 1, st)[1] for f in range(F)]
+        last = next(f for f in range(F) if planted[f] and not planted[(f + 1) % F])   # toe-off
+        first = next(f for f in range(F) if planted[f] and not planted[(f - 1) % F])  # heel strike
+        swing_ends[s] = (stance_pose(s, last), stance_pose(s, first))
+
     J = {k: np.zeros((F, 2)) for k in ("pelvis", "chest", "neck", "head_top", "l_hip", "r_hip",
                                        "l_knee", "r_knee", "l_ankle", "r_ankle", "l_toe", "r_toe",
                                        "l_shoulder", "r_shoulder", "l_elbow", "r_elbow",
@@ -185,10 +226,15 @@ def build(st=STYLE):
             p = (f / F + phase[s]) % 1
             a, planted = ankle_body(p, st)
             lf = lift[s][f] if planted else 0.0
+            hip = root                                           # H is the hip height
             if planted:
                 a = a + np.array([0.0, lf])                     # push-off: heel up
-            hip = root                                           # H is the hip height
-            knee, ank = ik(hip, root * [1, 0] + a)
+                knee, ank = ik(hip, root * [1, 0] + a)
+            else:
+                q = (p - st["stance"]) / (1 - st["stance"])
+                th, k = swing_pose(q, swing_ends[s][0], swing_ends[s][1], st)
+                knee = hip + THIGH * np.array([np.sin(np.radians(th)), -np.cos(np.radians(th))])
+                ank = knee + SHIN * np.array([np.sin(np.radians(th - k)), -np.cos(np.radians(th - k))])
             J[f"{s}_hip"][f], J[f"{s}_knee"][f], J[f"{s}_ankle"][f] = hip, knee, ank
             # foot pitch: toe up at heel strike, flat, then the heel lift turns the foot about
             # the ball (push-off), swing carries it round to the next heel strike

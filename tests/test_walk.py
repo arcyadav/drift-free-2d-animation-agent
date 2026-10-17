@@ -23,6 +23,9 @@ def test_walk():
     assert st[: int(0.45 * n)].max() <= 25, f"support knee lunges: {st[: int(0.45 * n)].max():.0f} deg"
     assert st[int(0.35 * n): int(0.6 * n)].max() <= 15, "support leg nearly straight in mid-stance"
     assert knee.max() < 70, "swing knee bends less than 70 degrees"
+    sw = knee[~l]
+    assert sw[-2:].max() <= 8, "knee straight before the heel lands (leg reaches forward)"
+    assert int(sw.argmax()) < len(sw) * 0.6, "swing knee bends most early in the swing"
     H = np.array(act["root"])[:, 1]
     assert np.abs(np.diff(np.r_[H, H[0]])).max() <= 0.016, "no sudden drops / hops in body height"
     assert 0.03 <= H.max() - H.min() <= 0.07, f"gentle bounce, got {H.max() - H.min():.3f}"
