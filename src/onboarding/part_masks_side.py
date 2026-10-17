@@ -25,7 +25,7 @@ from skimage.morphology import disk
 from src import config
 from src.onboarding.part_masks import (LIGHT_L, TEE_TOUCH, DARK_L, HAIR_MIN_PX, HAIR_OPEN, EAR_MIN_PX, CROTCH_FRAC,
                                        beyond, classify, cleanup, head_pivots, jaw_line,
-                                       outlines_to_front, save, scrunchie, side, validate)
+                                       lines_to_movers, outlines_to_front, save, scrunchie, side, validate)
 
 VIEW = "side_left"
 NEAR, FAR = "l", "r"
@@ -237,6 +237,7 @@ def split_parts(rgba, kp, pal):
     tips = denim & (L > TIP_L) & (ndi.distance_transform_edt(~hand) <= TIP_REACH)
     lab_map[tips] = PART_ID["hand_l"]
     outlines_to_front(lab_map, lab, near_ids)
+    lines_to_movers(lab_map, lab, near_ids, [PART_ID[n] for n in ("upper_arm_l", "forearm_l", "hand_l")])
     strand_top = front_strand(lab_map, L, fg, kp, xx, yy)
     info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1), "hem_y": hem_y,
             "sleeve_line": [round(float(a), 4), round(float(b), 1)], "sleeve_seam_rows": [inl, rows],

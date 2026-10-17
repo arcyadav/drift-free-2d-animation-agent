@@ -37,7 +37,9 @@ from src.utils.io import save_image, save_text
 RULES = {
     "front": {
         "underlap": [
-            ("torso", ["upper_arm_l", "upper_arm_r", "forearm_l", "forearm_r", "hand_l", "hand_r"], 14, True, False),
+            # no drawn outline: it came out darker than the artist's light tee lines and
+            # showed as a dark sliver under the sleeve as soon as the arm moved
+            ("torso", ["upper_arm_l", "upper_arm_r", "forearm_l", "forearm_r", "hand_l", "hand_r"], 14, False, False),
             ("torso", ["ponytail", "head_hair"], 40, False, False),
             ("neck", ["head", "head_hair", "ponytail", "strand_r"], 30, False, False),
             ("head", ["head_hair", "ponytail", "strand_r"], 18, False, False),

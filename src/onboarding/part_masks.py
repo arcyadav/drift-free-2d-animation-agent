@@ -75,10 +75,13 @@ OUTLINE_REACH = 2      # ... and within this many px of a part drawn in front �
 BLEND_DE = 6           # anti-aliased blend next to a front part: smaller colour difference ...
 BLEND_REACH = 2        # ... within this many px
 MOVERS = [f"{a}_{s}" for s in "lr" for a in ("upper_arm", "forearm", "hand")]
+MOVER_LINE_REACH = 7   # px: a mover's own outline this close on the part behind ...
+MOVER_LINE_DE = 14     # ... and this close to the mover's line colour moves with it
 UNMIX_REACH = 22       # arm pixels this close to a part behind may carry its colour (finger gaps)
 UNMIX_MIN = 0.12       # ignore tiny mixes (clean skin / outline)
 SOLID_MAX_B = 0.6      # solid copy: pixels less than 60% denim count as arm
-UNMIX_CLEAN_GAP = 4    # px from the arm before denim counts as clean
+UNMIX_CLEAN_GAP = 4
+UNMIX_FILL_DE = 15     # behind-part reference pixels must be this close to its typical colour    # px from the arm before denim counts as clean
 DEFAULT_LINE = (78, 52, 40)   # warm dark brown, if no clean arm outline is found
 UNMIX_CONTRAST = 40    # RGB distance arm ↔ part behind below which there is nothing to unmix
 HALO_SOLID_A = 200     # dehalo: pixels at least this opaque count as the part's true colour
@@ -225,6 +228,8 @@ def split_parts(rgba, kp, pal):
 
     cleanup(lab_map, fg, rgba[..., 3] > 0, PART_ID.values())
     outlines_to_front(lab_map, lab, [PART_ID[n] for n, _ in PARTS])
+    lines_to_movers(lab_map, lab, [PART_ID[n] for n, _ in PARTS],
+                    [PART_ID[n] for n in MOVERS if n in PART_ID])
     info = {"collar_y": int(collar_y), "crotch_y": round(float(crotch_y), 1),
             "jaw_y": [int(jaw_y.min()), int(jaw_y.max())], "face_right": int(face_right),
             "scrunchie": tie_xy, "neck_top": [round(float(neck_cols.mean()), 1), round(float(np.median(jaw_y)), 1)]}
@@ -238,6 +243,33 @@ def scrunchie(hair, lab, where):
         return None
     ys, xs = np.where(tie)
     return [round(float(xs.mean()), 1), round(float(ys.mean()), 1)]
+
+
+def lines_to_movers(lab_map, lab, order_ids, mover_ids):
+    """A moving part's own outline that landed a few px on the part behind it (the sleeve's
+    inner contour on the tee body) moves with the mover — else it stays behind as a dark
+    sliver when the arm moves. Only lines in the mover's OWN line colour (a blue jeans seam
+    next to the hand is not the hand's)."""
+    rank = {pid: r for r, pid in enumerate(order_ids)}
+    moved = 0
+    for mid in mover_ids:
+        m = lab_map == mid
+        if not m.any():
+            continue
+        med = np.median(lab[m], 0)
+        own_line = m & (lab[..., 0] < med[0] - OUTLINE_DE)
+        if own_line.sum() < 10:
+            continue
+        line_col = np.median(lab[own_line], 0)
+        behind = np.isin(lab_map, [p for p in order_ids if rank[p] < rank[mid]])
+        near = ndi.distance_transform_edt(~m) <= MOVER_LINE_REACH
+        cand = behind & near & (np.linalg.norm(lab - line_col, axis=-1) < MOVER_LINE_DE)
+        # only line pixels connected to the mover (not a separate stroke that happens to be near)
+        cl, _ = ndi.label(cand | m)
+        keep = np.isin(cl, np.unique(cl[m])) & cand
+        lab_map[keep] = mid
+        moved += int(keep.sum())
+    return moved
 
 
 def outlines_to_front(lab_map, lab, order_ids):
@@ -382,6 +414,13 @@ def unmix_movers(cuts, rgba, lab_map, parts, part_id, movers, solid=None):
     # the denim colour comes from CLEAN denim a few px away from the arm: the touching
     # pixels still hold bits of the arm's outline (would paint a brown trace on the jeans)
     O_clean = O & (ndi.distance_transform_edt(~M) > UNMIX_CLEAN_GAP)
+    # ... and never a line pixel of the part behind (the sleeve's seam on the tee gave the
+    # tee black pixels under the sleeve edge): only pixels close to that part's own colour
+    for pid in behind_ids:
+        pm = O_clean & (lab_map == pid)
+        if pm.sum() > 30:
+            med = np.median(lab[pm], 0)
+            O_clean &= ~((lab_map == pid) & (np.linalg.norm(lab - med, axis=-1) > UNMIX_FILL_DE))
     _, (oy, ox) = ndi.distance_transform_edt(~O_clean, return_indices=True)
     name_of = {v: k for k, v in part_id.items()}
     # the arm's own outline colour, measured where the arm is NOT next to the jeans (its

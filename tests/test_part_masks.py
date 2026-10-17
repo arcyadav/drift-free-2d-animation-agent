@@ -68,6 +68,25 @@ def test_side_parts():
     print("side part masks: all checks passed")
 
 
+def test_no_dark_artifacts():
+    """No cut-out may hold pixels much darker than the drawing at the same spot (a wrong
+    reference colour once painted the tee black under the sleeve edge)."""
+    from skimage.color import rgb2lab
+    for view in ("front", "side_left"):
+        meta = json.loads((CHAR / f"parts/{view}/parts.json").read_text())
+        art = np.asarray(Image.open(CHAR / f"views/{view}.png").convert("RGBA"))
+        La = rgb2lab(art[..., :3] / 255.0)[..., 0]
+        for n, p in meta["parts"].items():
+            if p.get("copy_of"):
+                continue                                   # far limbs are shaded on purpose
+            cut = np.asarray(Image.open(CHAR / f"parts/{view}/{n}.png"))
+            Lc = rgb2lab(cut[..., :3] / 255.0)[..., 0]
+            bad = (cut[..., 3] > 128) & (art[..., 3] > 128) & (Lc < La - 30)
+            assert bad.sum() < 25, f"{view}/{n}: {bad.sum()} pixels much darker than the drawing"
+    print("no dark artifacts: all checks passed")
+
+
 if __name__ == "__main__":
     test_front_parts()
     test_side_parts()
+    test_no_dark_artifacts()
