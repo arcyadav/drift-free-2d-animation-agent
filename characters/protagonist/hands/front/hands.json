@@ -1,0 +1,20 @@
+{
+  "open_l": {
+    "px": 10095,
+    "align_mean_diff": 5.65,
+    "aligned": true,
+    "pivot": [
+      736.2,
+      768.0
+    ]
+  },
+  "fist_l": {
+    "px": 5963,
+    "align_mean_diff": 5.82,
+    "aligned": true,
+    "pivot": [
+      736.2,
+      768.0
+    ]
+  }
+}

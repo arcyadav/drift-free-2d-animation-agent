@@ -163,22 +163,25 @@ class Walker:
         return rep
 
     def background(self, cam_x, body_x):
-        img = np.empty((OUT_H, OUT_W, 3), np.uint8)
-        img[:] = BG
-        cv2.rectangle(img, (0, GROUND_SCREEN_Y), (OUT_W, OUT_H), GROUND, -1)
-        # ground marks every 160 world px, scrolling with the camera
+        return background(cam_x, body_x)
+
+
+def background(cam_x, body_x, ground_marks=True):
+    """cream backdrop, ground strip, scrolling ground marks, soft contact shadow."""
+    img = np.empty((OUT_H, OUT_W, 3), np.uint8)
+    img[:] = BG
+    cv2.rectangle(img, (0, GROUND_SCREEN_Y), (OUT_W, OUT_H), GROUND, -1)
+    if ground_marks:                      # every 160 world px, scrolling with the camera
         step = 160
         x0 = int(np.floor((-cam_x) / (step * SCALE))) - 1
         for i in range(x0, x0 + int(OUT_W / (step * SCALE)) + 3):
             sx = int(i * step * SCALE + cam_x)
             cv2.line(img, (sx, GROUND_SCREEN_Y + 18), (sx + 26, GROUND_SCREEN_Y + 18), (205, 196, 180), 3)
-        # soft contact shadow under her
-        sx = int(body_x * SCALE + cam_x)
-        sh = np.zeros_like(img, np.float32)
-        cv2.ellipse(sh, (sx, GROUND_SCREEN_Y), (int(110 * SCALE * 2.2), 12), 0, 0, 360, (1, 1, 1), -1)
-        sh = cv2.GaussianBlur(sh, (0, 0), 6)
-        img = (img * (1 - 0.18 * sh)).astype(np.uint8)
-        return img
+    sx = int(body_x * SCALE + cam_x)
+    sh = np.zeros_like(img, np.float32)
+    cv2.ellipse(sh, (sx, GROUND_SCREEN_Y), (int(110 * SCALE * 2.2), 12), 0, 0, 360, (1, 1, 1), -1)
+    sh = cv2.GaussianBlur(sh, (0, 0), 6)
+    return (img * (1 - 0.18 * sh)).astype(np.uint8)
 
 
 def run(character="protagonist", action="walk", seconds=4.0, out=None, strands=False):
