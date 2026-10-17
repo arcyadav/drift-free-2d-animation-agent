@@ -63,8 +63,9 @@ def two_bone_ik(hip, target, l1, l2, forward_x):
 
 class Walker:
     def __init__(self, character, action="walk", view="side_left", strands=False, speed=1.0,
-                 mirror=False):
+                 mirror=False, shot="full"):
         self.speed, self.mirror = speed, mirror          # mirror: walk to the right (view graph)
+        self.shot = shot
         self.char_dir = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char_dir, view, "filled")
         self.rt = Retargeter(self.meta, load_motion(action), facing="left")
@@ -165,10 +166,9 @@ class Walker:
                                     macro_block_size=8, ffmpeg_log_level="error")
         for local, off in frames:
             body_x = start[0] + off[0]
-            cam_x = OUT_W * 0.5 - body_x * SCALE              # camera keeps her centred
-            cam_y = GROUND_SCREEN_Y - self.ground_y * SCALE
-            cam = np.array([[SCALE, 0, cam_x], [0, SCALE, cam_y], [0, 0, 1]])
-            canvas = self.background(cam_x, body_x)
+            # camera keeps her centred; closer shots follow her bob a little (half of it)
+            cam, _, cam_x = shot_camera(self.shot, body_x, self.ground_y, 0.5 * off[1])
+            canvas = self.background(cam_x, body_x) if self.shot == "full" else plain_background()
             root = np.array([[1, 0, off[0]], [0, 1, off[1]], [0, 0, 1]])
             img = rigid_pose.render(self.meta, self.imgs, local, root=root, camera=cam,
                                     size=(OUT_W, OUT_H), canvas=canvas, bends=BENDS)
@@ -182,6 +182,31 @@ class Walker:
 
     def background(self, cam_x, body_x):
         return background(cam_x, body_x)
+
+
+# shot framing: (top, bottom) of the visible part of the character in rig px; None = full body
+SHOTS = {"full": None, "medium": (70, 800), "close": (110, 420)}
+
+
+def shot_camera(shot, focus_x, ground_y, body_top=0.0):
+    """camera matrix for a shot; full = feet on the ground line, else frame top..bottom
+    (shifted with the body's vertical motion) to the frame height, centred on focus_x."""
+    span = SHOTS.get(shot)
+    if span is None:
+        cx = OUT_W * 0.5 - focus_x * SCALE
+        cy = GROUND_SCREEN_Y - ground_y * SCALE
+        return np.array([[SCALE, 0, cx], [0, SCALE, cy], [0, 0, 1]]), SCALE, cx
+    top, bot = span[0] + body_top, span[1] + body_top
+    s = OUT_H / (bot - top)
+    cx = OUT_W * 0.5 - focus_x * s
+    cy = -top * s
+    return np.array([[s, 0, cx], [0, s, cy], [0, 0, 1]]), s, cx
+
+
+def plain_background():
+    img = np.empty((OUT_H, OUT_W, 3), np.uint8)
+    img[:] = BG
+    return img
 
 
 def background(cam_x, body_x, ground_marks=True):

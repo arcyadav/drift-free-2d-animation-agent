@@ -28,11 +28,12 @@ def make_clip(text, character="protagonist", use_llm=True, out_dir=None):
     out = out_dir / f"{slug(text)}.mp4"
     t1 = time.time()
     if plan["view"] == "side_left":
-        w = Walker(character, plan["action"], speed=plan["speed"], mirror=plan["direction"] == "right")
+        w = Walker(character, plan["action"], speed=plan["speed"], mirror=plan["direction"] == "right",
+                   shot=plan["shot"])
         rep = w.render(plan["seconds"] or 5.0, str(out))
     else:
         rep = front_clip.FrontClip(character, plan["action"], plan["expression"], plan["speed"],
-                                   plan["seconds"]).render(str(out))
+                                   plan["seconds"], plan["shot"]).render(str(out))
     report = {"request": text, "plan": plan, "render": rep, "file": str(out.relative_to(config.ROOT)),
               "timing_s": {"plan": round(t_plan, 2), "render": round(time.time() - t1, 2)}}
     save_text(json.dumps(report, indent=2), out.with_suffix(".json"))
@@ -42,4 +43,4 @@ def make_clip(text, character="protagonist", use_llm=True, out_dir=None):
 if __name__ == "__main__":
     r = make_clip(" ".join(sys.argv[1:]) or "make her wave happily")
     print(json.dumps({k: r[k] for k in ("file", "timing_s")}, indent=2))
-    print(json.dumps({k: r["plan"][k] for k in ("action", "expression", "view", "speed", "direction", "notes")}))
+    print(json.dumps({k: r["plan"][k] for k in ("action", "expression", "view", "speed", "direction", "shot", "notes")}))

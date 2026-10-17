@@ -20,7 +20,8 @@ from PIL import Image
 
 from src import config
 from src.animation import rigid_pose
-from src.animation.animator import FPS, ON_TWOS, OUT_H, OUT_W, SCALE, GROUND_SCREEN_Y, background
+from src.animation.animator import (FPS, ON_TWOS, OUT_H, OUT_W, SCALE, GROUND_SCREEN_Y, background,
+                                    plain_background, shot_camera)
 from src.animation.retarget import to_local
 from src.utils.io import save_text
 
@@ -40,8 +41,9 @@ SPRINGS = {"ponytail": dict(k=110.0, d=8.0, gain=0.9), "strand_r": dict(k=220.0,
 
 
 class FrontClip:
-    def __init__(self, character, action, expression=None, speed=1.0, seconds=None):
+    def __init__(self, character, action, expression=None, speed=1.0, seconds=None, shot="full"):
         self.action, self.expression, self.speed, self.seconds = action, expression, speed, seconds
+        self.shot = shot
         self.char = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char, "front", "filled")
         self.m = json.loads((config.ROOT / "actions" / action / "motion.json").read_text())
@@ -140,10 +142,8 @@ class FrontClip:
         return out
 
     def render(self, out_path):
-        cam_x = OUT_W * 0.5 - config.CENTER_X * SCALE
-        cam_y = GROUND_SCREEN_Y - self.ground_y * SCALE
-        cam = np.array([[SCALE, 0, cam_x], [0, SCALE, cam_y], [0, 0, 1]])
-        bg = background(cam_x, config.CENTER_X, ground_marks=False)
+        cam, _, cam_x = shot_camera(self.shot, config.CENTER_X, self.ground_y)
+        bg = background(cam_x, config.CENTER_X, ground_marks=False) if self.shot == "full"             else plain_background()
         writer = imageio.get_writer(out_path, fps=FPS, codec="libx264", quality=8,
                                     macro_block_size=8, ffmpeg_log_level="error")
         frames = self.frames()
@@ -172,10 +172,11 @@ class FrontClip:
                 "blink_closed_frames": int(blinks)}
 
 
-def run(character="protagonist", action="wave", expression=None, speed=1.0, seconds=None, out=None):
+def run(character="protagonist", action="wave", expression=None, speed=1.0, seconds=None, out=None,
+        shot="full"):
     out = out or config.ROOT / "outputs" / f"{action}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    rep = FrontClip(character, action, expression, speed, seconds).render(str(out))
+    rep = FrontClip(character, action, expression, speed, seconds, shot).render(str(out))
     rep.update({"character": character, "action": action})
     save_text(json.dumps(rep, indent=2), out.with_suffix(".json"))
     print(json.dumps(rep, indent=2))

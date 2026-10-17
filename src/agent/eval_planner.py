@@ -11,7 +11,7 @@ from src.agent.planner import plan_request
 from src.utils.io import save_text
 
 CASES = config.ROOT / "tests" / "planner_cases.json"
-FIELDS = ("action", "expression", "speed", "direction", "seconds")
+FIELDS = ("action", "expression", "speed", "direction", "seconds", "shot")
 
 
 def score(use_llm):

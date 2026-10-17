@@ -47,6 +47,9 @@ EXPRESSION_WORDS = {
 }
 SPEED_WORDS = [(0.6, ["very slow", "really slow", "sluggish"]), (0.75, ["slow", "slowly", "gently", "lazily", "tired"]),
                (1.3, ["quick", "fast", "hurr", "rush", "brisk"]), (1.0, ["normal"])]
+SHOT_WORDS = {"close": ["close-up", "close up", "closeup", "zoom", "her face", "on her face", "face only"],
+              "medium": ["medium", "waist up", "upper body", "closer", "half body", "shoulders"],
+              "full": ["full body", "full shot", "wide", "whole body"]}
 DIRECTION_WORDS = {"right": ["right", "to the right"], "left": ["left", "to the left"]}
 
 
@@ -76,6 +79,10 @@ def parse_rules(text):
     for v, words in SPEED_WORDS:
         if _has(t, words):
             plan["speed"] = v
+            break
+    for sh, words in SHOT_WORDS.items():
+        if _has(t, words):
+            plan["shot"] = sh
             break
     for d, words in DIRECTION_WORDS.items():
         if _has(t, words):
@@ -143,6 +150,7 @@ def validate(plan, lib, notes):
     plan["direction"] = plan.get("direction", "left")
     if plan["direction"] not in ("left", "right"):
         plan["direction"] = "left"
+    plan["shot"] = plan.get("shot", "full")
     sec = plan.get("seconds") or DEFAULT_SECONDS.get(plan["action"])
     plan["seconds"] = float(min(max(sec, 1.0), 15.0)) if sec else None
     return plan

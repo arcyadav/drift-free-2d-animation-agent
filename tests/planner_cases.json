@@ -196,5 +196,16 @@
  {
   "q": "she is walking lost in thoughts and grieved",
   "action": "walk"
+ },
+ {
+  "q": "close-up of her face, she smiles",
+  "expression": "smile",
+  "shot": "close"
+ },
+ {
+  "q": "medium shot, she looks down sadly",
+  "action": "look_down",
+  "expression": "sad",
+  "shot": "medium"
  }
 ]
