@@ -32,6 +32,11 @@ def test_walk():
     heel = np.array(act["joints"]["l_ankle"])[:, 1]
     assert heel[l][-3:].max() > heel[l][:3].min() + 0.03, "heel lifts before toe-off (push-off)"
     assert act.get("torso_lean", 0) >= 3, "upper body leans forward into the step"
+    J = {k: np.array(v) for k, v in act["joints"].items()}
+    th = np.concatenate([np.degrees(np.arctan2((J[f"{x}_knee"] - J[f"{x}_hip"])[:, 0],
+                                               -(J[f"{x}_knee"] - J[f"{x}_hip"])[:, 1])) for x in "lr"])
+    assert np.percentile(th, 98) <= 26, "thigh does not kick up toward the body"
+    assert -np.percentile(th, 2) >= 10, "leg trails far enough behind (thigh back >= 10 deg)"
     assert act["frames"] % 4 == 0, "cycle = two equal steps on twos (odd cycles limp)"
 
     frames, slide = Walker("protagonist").poses(3.0)

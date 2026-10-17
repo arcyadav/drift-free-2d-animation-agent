@@ -31,7 +31,7 @@ from src.utils.io import save_text
 STYLE = {
     "cycle_s": 1.5,        # ~1.33 steps / s: relaxed pace measured from a reference AI walk
                            # video (2 steps / s looked hurried); snapped to a multiple of 4 frames
-    "step": 0.66,          # ankle travel under the body during stance (leg lengths)
+    "step": 0.72,          # ankle travel under the body during stance (leg lengths)
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.03,          # swing-foot lift at mid-swing: low, relaxed (higher kicked the thigh up)
     "swing_lag": 1.8,      # (foot-path swing, unused: the swing is keyed in joint angles)
@@ -39,11 +39,12 @@ STYLE = {
     "knee_peak_at": 0.35,  # ... at this share of the swing
     "knee_straight_at": 0.85,  # ... and is fully straight from here until the heel lands
     "thigh_reach_at": 0.8,     # thigh has swung forward to its heel-strike angle by here
-    "foot_back": 0.03,     # footprints sit this much behind the hips so that at heel strike the
-                           # hips are midway between the feet: legs open into a symmetric V
+    "foot_back": 0.06,     # footprints sit this much behind the hips: at heel strike the hips are
+                           # midway between the feet (symmetric V) and the leg trails far enough
+                           # behind (thigh ~13 deg back, like the reference; 0.03 gave only 7)
                            # (= step/2 - step/2.2; the stance foot keeps moving back during the
                            # 10% double support). Reach is guaranteed by the animator's pelvis drop.
-    "heel_from": 0.75,     # share of stance after which the back heel lifts (back leg stays
+    "heel_from": 0.8,     # share of stance after which the back heel lifts (back leg stays
                            # straight until just before toe-off: the V at heel strike)
     "knee_soft": 3.0,      # deg: stance knee almost straight (it vaults the body)
     # Real walking: the support leg stays nearly straight (a stilt) and the body vaults over
