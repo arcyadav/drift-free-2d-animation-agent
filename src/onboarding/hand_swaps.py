@@ -11,6 +11,7 @@ Usage: python -m src.onboarding.hand_swaps --character protagonist
 import argparse
 import json
 
+import cv2
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
@@ -61,13 +62,28 @@ def run(character):
         hand = ndi.binary_dilation(cl == lid, iterations=1) & (a[..., 3] > 0) & past & near
         cut = a.copy()
         cut[~hand, 3] = 0
+        # the image edit drew the open hand too big (+27% long, wrist +42% wide): a hand does
+        # not change size when it opens -> scale about the wrist to the relaxed hand's length
+        relaxed = np.asarray(Image.open(char / "parts" / "front" / f"hand_{s}.png"))[..., 3] > 128
+        def length(m):
+            ys, xs = np.where(m)
+            return np.percentile((np.stack([xs, ys], 1) - wr) @ d, 99)
+        scale = float(np.clip(length(relaxed) / length(cut[..., 3] > 128), 0.6, 1.0))
+        M = np.array([[scale, 0, wr[0] * (1 - scale)], [0, scale, wr[1] * (1 - scale)]])
+        pm = cut.astype(np.float32)
+        pm[..., :3] *= pm[..., 3:4] / 255
+        pm = cv2.warpAffine(pm, M, (a.shape[1], a.shape[0]), flags=cv2.INTER_AREA,
+                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+        al = pm[..., 3:4]
+        pm[..., :3] = np.where(al > 0, pm[..., :3] / np.maximum(al, 1e-3) * 255, 0)
+        cut = np.clip(pm, 0, 255).astype(np.uint8)
         save_image(cut, out / f"{pose}_{s}.png")
         # alignment: away from the hand the edit must equal the front view
         far = ~(np.linalg.norm(P - wr, axis=-1) < HAND_REACH + 40) & (view[..., 3] > 200) & (a[..., 3] > 200)
         diff = float(np.abs(a[..., :3].astype(float) - view[..., :3])[far].mean())
-        report[f"{pose}_{s}"] = {"px": int(hand.sum()), "align_mean_diff": round(diff, 2),
+        report[f"{pose}_{s}"] = {"px": int(hand.sum()), "scale": round(scale, 3), "align_mean_diff": round(diff, 2),
                                  "aligned": diff <= ALIGN_MAX, "pivot": wr.round(1).tolist()}
-        print(f"{pose}_{s}: {hand.sum()} px, alignment diff {diff:.2f} ({'ok' if diff <= ALIGN_MAX else 'CHECK'})")
+        print(f"{pose}_{s}: {hand.sum()} px, scale {scale:.2f}, alignment diff {diff:.2f} ({'ok' if diff <= ALIGN_MAX else 'CHECK'})")
     save_text(json.dumps(report, indent=2), out / "hands.json")
     return report
 

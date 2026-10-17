@@ -1,6 +1,7 @@
 {
   "open_l": {
     "px": 10095,
+    "scale": 0.79,
     "align_mean_diff": 5.65,
     "aligned": true,
     "pivot": [
@@ -10,6 +11,7 @@
   },
   "fist_l": {
     "px": 5963,
+    "scale": 1.0,
     "align_mean_diff": 5.82,
     "aligned": true,
     "pivot": [

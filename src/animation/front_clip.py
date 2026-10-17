@@ -26,6 +26,9 @@ from src.utils.io import save_text
 
 FACE_LAYERS = ("eyes", "brows", "mouth")
 BLINK_EVERY = (2.6, 3.8)    # s between blinks (random in this range, fixed seed)
+WRIST_LAG = 0.08            # s: the hand trails the forearm by this much ...
+WRIST_GAIN = 0.9            # ... turning by this share of the forearm's recent swing ...
+WRIST_MAX = 18.0            # ... at most this many degrees
 HEAD_TILT = -3.0            # deg toward her left (viewer's right) while the hand is up
 SPRINGS = {"ponytail": dict(k=110.0, d=8.0, gain=0.9), "strand_r": dict(k=220.0, d=12.0, gain=0.6)}
 
@@ -92,6 +95,14 @@ class FrontClip:
         for k in range(0, n, ON_TWOS):
             world, hand = self.sample(k / FPS)
             up = any(v == "open" for v in hand.values())
+            # wrist follow-through: the open hand trails the forearm's swing and flicks at
+            # each turn (hand angle ~ minus the forearm's angular velocity), only while waving
+            for part, pose in hand.items():
+                fore = part.replace("hand", "forearm")
+                if pose == "open" and fore in world:
+                    prev, _ = self.sample(max(k / FPS - WRIST_LAG, 0))
+                    vel = world[fore] - prev.get(fore, world[fore])
+                    world[part] = world[fore] + float(np.clip(-WRIST_GAIN * vel, -WRIST_MAX, WRIST_MAX))
             tilt += (HEAD_TILT * up - tilt) * 0.35                  # ease into / out of the tilt
             world["head"] = tilt
             acc = (tilt - 2 * prev_head[-1] + prev_head[-2]) / dt ** 2
