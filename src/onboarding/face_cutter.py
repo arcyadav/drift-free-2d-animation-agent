@@ -140,7 +140,7 @@ def eye_opening(lab, pupil, gap):
     return ndi.binary_fill_holes(ndi.binary_closing(keep, iterations=2)) & zone
 
 
-def aligned_eyes(im, neutral, open_n, info, brow_block, head):
+def aligned_eyes(im, neutral, open_n, info, brow_block, head, align=True):
     """Eyes of an expression image, each moved so its eye opening sits where the neutral
     eye sits (image edits drift features by ~10 px), cut tightly around the eye only
     (opening + lashes): no pieces of the expression's brows come along."""
@@ -165,7 +165,9 @@ def aligned_eyes(im, neutral, open_n, info, brow_block, head):
         # align the opening's top edge (lash line) and horizontal centre
         dx = float(xs_n.mean() - xs_e.mean())
         dy = float(np.percentile(ys_n, 5) - np.percentile(ys_e, 5))
-        dx, dy = np.clip([dx, dy], -EYE_ALIGN_MAX, EYE_ALIGN_MAX)
+        dx, dy = np.clip([dx, dy], -EYE_ALIGN_MAX, EYE_ALIGN_MAX) if align else (0.0, 0.0)
+        if not align:
+            oe = on                                       # drawn from the neutral eye: same place
         M = np.float32([[1, 0, dx], [0, 1, dy]])
         import cv2
         moved = cv2.warpAffine(im, M, (im.shape[1], im.shape[0]), flags=cv2.INTER_LINEAR)
@@ -288,7 +290,10 @@ def run(character, view="front"):
                 old.unlink()
         for name, im in imgs.items():
             if layer == "eyes":                                     # tight eye cut for every image
-                cut, shifts = aligned_eyes(im, neutral, open_n, info, brow_block, head)
+                # blinks drawn from the neutral eyes are already in place: never re-align them
+                synth = SYNTH_BLINK and name in ("eyes_half", "eyes_closed")
+                cut, shifts = aligned_eyes(im, neutral, open_n, info, brow_block, head,
+                                           align=not (synth or name == "neutral"))
                 info["eye_shift"][name] = shifts
             else:
                 cut = im.copy()
