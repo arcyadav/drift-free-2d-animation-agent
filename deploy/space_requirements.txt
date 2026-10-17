@@ -1,0 +1,7 @@
+numpy>=1.26,<2.2
+pillow
+opencv-python-headless<4.12
+scipy
+scikit-image
+imageio
+imageio-ffmpeg
