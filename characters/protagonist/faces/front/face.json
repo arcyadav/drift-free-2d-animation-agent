@@ -63,6 +63,16 @@
         -8.0
       ]
     ],
+    "neutral": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0
+      ]
+    ],
     "sad": [
       [
         0.9,
@@ -137,6 +147,16 @@
       "skin_px": 10859,
       "mean_shift_dE": 0.4
     }
+  },
+  "eye_layer_brow_px": {
+    "eyes_closed": 0,
+    "eyes_down": 0,
+    "eyes_half": 0,
+    "neutral": 0,
+    "sad": 0,
+    "shocked": 0,
+    "smile": 0,
+    "worried": 0
   },
   "outside_zone_mean_dE": {
     "eyes_closed": 0.67,

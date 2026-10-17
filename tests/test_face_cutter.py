@@ -19,6 +19,8 @@ CHAR = config.CHARACTERS / "protagonist"
 def test_faces():
     info = face_cutter.run("protagonist")
     assert info["identity_max_diff"] <= 1, "neutral layers must reproduce the drawing"
+    bad = {n: v for n, v in info["eye_layer_brow_px"].items() if v > 5}
+    assert not bad, f"eye layers contain eyebrow pixels: {bad}"
     (lx, ly), (rx, ry) = info["pupils"]
     assert abs(ly - ry) < 6 and 40 < rx - lx < 120, "two pupils, level, sensible spacing"
     assert info["mouth_centre"][1] > ly + 30, "mouth below the eyes"

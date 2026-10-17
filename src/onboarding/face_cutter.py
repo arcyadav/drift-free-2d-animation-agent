@@ -285,7 +285,7 @@ def run(character, view="front"):
             if old.stem not in imgs:
                 old.unlink()
         for name, im in imgs.items():
-            if layer == "eyes" and name != "neutral":
+            if layer == "eyes":                                     # tight eye cut for every image
                 cut, shifts = aligned_eyes(im, neutral, open_n, info, brow_block, head)
                 info["eye_shift"][name] = shifts
             else:
@@ -296,15 +296,21 @@ def run(character, view="front"):
     # check: the neutral layers over the head reproduce the drawing
     head_rgb = neutral[..., :3].astype(float)
     comp = head_rgb.copy()
-    for layer in LAYERS:
-        a = alpha[layer][..., None]
-        comp = comp * (1 - a) + neutral[..., :3] * a
+    for layer in LAYERS:                                     # the saved neutral layers
+        L = np.asarray(Image.open(out / layer / "neutral.png")).astype(float)
+        a = L[..., 3:4] / 255
+        comp = comp * (1 - a) + L[..., :3] * a
     identity = float(np.abs(comp - head_rgb)[head].max())
+    # eye layers must not carry any brow: dark brow strokes inside the brow zone
+    brow_px = zones["brows"] & (lab_n[..., 0] < 45)
+    brow_overlap = {n: int(((np.asarray(Image.open(out / "eyes" / f"{n}.png"))[..., 3] > 20) & brow_px).sum())
+                    for n in imgs}
     # how much each expression differs from neutral outside the zones (redraw noise ignored)
     outside = head & ~np.any(list(zones.values()), 0)
     noise = {k: round(float(np.linalg.norm(rgb2lab(v[..., :3] / 255.0) - rgb2lab(neutral[..., :3] / 255.0),
                                            axis=-1)[outside].mean()), 2) for k, v in imgs.items() if k != "neutral"}
     info.update({"images": sorted(imgs), "identity_max_diff": round(identity, 2), "fixes": fixes,
+                 "eye_layer_brow_px": brow_overlap,
                  "outside_zone_mean_dE": noise, "layers": list(LAYERS), "blink": BLINK})
     save_text(json.dumps(info, indent=2), out / "face.json")
     save_text(json.dumps({"recipes": RECIPES, "blink": BLINK, "layers": list(LAYERS)}, indent=2),
