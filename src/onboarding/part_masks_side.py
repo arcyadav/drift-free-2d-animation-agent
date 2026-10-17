@@ -31,13 +31,13 @@ VIEW = "side_left"
 NEAR, FAR = "l", "r"
 LIMBS = ["upper_arm", "forearm", "hand", "thigh", "shin", "foot"]
 # back → front
-PARTS = [
+PARTS = [   # back → front. The neck / head draw above the arm: a swinging sleeve corner
+            # otherwise painted its outline across the neck
     ("foot_r", "r_ankle"), ("shin_r", "r_knee"), ("thigh_r", "r_hip"),
     ("upper_arm_r", "r_shoulder"), ("forearm_r", "r_elbow"), ("hand_r", "r_wrist"),
     ("pelvis", "pelvis"), ("foot_l", "l_ankle"), ("shin_l", "l_knee"), ("thigh_l", "l_hip"),
-    ("neck", "neck"), ("torso", "waist"), ("head", "neck_top"), ("head_hair", "neck_top"),
-    ("strand_l", "strand_top"),
-    ("upper_arm_l", "l_shoulder"), ("forearm_l", "l_elbow"), ("hand_l", "l_wrist"),
+    ("torso", "waist"), ("upper_arm_l", "l_shoulder"), ("forearm_l", "l_elbow"), ("hand_l", "l_wrist"),
+    ("neck", "neck"), ("head", "neck_top"), ("head_hair", "neck_top"), ("strand_l", "strand_top"),
     ("ponytail", "scrunchie"),
 ]
 PARENT = {"torso": "pelvis", "pelvis": None, "neck": "torso", "head": "neck",   # spine sits on the pelvis

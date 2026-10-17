@@ -1,18 +1,18 @@
 {
   "view": "side_left",
   "added_px": {
-    "pelvis": 11272,
+    "pelvis": 11263,
     "foot_l": 6195,
     "shin_l": 4673,
-    "thigh_l": 23620,
-    "neck": 4360,
-    "torso": 18259,
-    "head": 6423,
+    "thigh_l": 23546,
+    "torso": 17879,
+    "upper_arm_l": 3290,
+    "forearm_l": 3521,
+    "hand_l": 1078,
+    "neck": 4521,
+    "head": 6422,
     "head_hair": 3463,
     "strand_l": 0,
-    "upper_arm_l": 3403,
-    "forearm_l": 3531,
-    "hand_l": 1080,
     "ponytail": 0
   },
   "underlap": [

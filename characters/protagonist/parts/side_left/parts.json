@@ -40,7 +40,7 @@
       488.6,
       219.0
     ],
-    "unmixed_px": 7291
+    "unmixed_px": 6972
   },
   "issues": [],
   "layer_order": [
@@ -54,14 +54,14 @@
     "foot_l",
     "shin_l",
     "thigh_l",
-    "neck",
     "torso",
-    "head",
-    "head_hair",
-    "strand_l",
     "upper_arm_l",
     "forearm_l",
     "hand_l",
+    "neck",
+    "head",
+    "head_hair",
+    "strand_l",
     "ponytail"
   ],
   "parts": {
@@ -136,12 +136,12 @@
         511.9,
         409.3
       ],
-      "px": 21719,
+      "px": 20941,
       "pieces": 4,
       "main_piece": 1.0,
       "bbox": [
         487,
-        356,
+        371,
         597,
         623
       ],
@@ -263,116 +263,44 @@
         1078
       ]
     },
-    "neck": {
-      "id": 11,
-      "parent": "torso",
-      "pivot_joint": "neck",
-      "pivot": [
-        511.9,
-        409.3
-      ],
-      "px": 2277,
-      "pieces": 1,
-      "main_piece": 1.0,
-      "bbox": [
-        487,
-        322,
-        552,
-        392
-      ]
-    },
     "torso": {
-      "id": 12,
+      "id": 11,
       "parent": "pelvis",
       "pivot_joint": "waist",
       "pivot": [
         488.9,
         612.0
       ],
-      "px": 15171,
-      "pieces": 10,
+      "px": 14910,
+      "pieces": 17,
       "main_piece": 1.0,
       "bbox": [
         416,
-        369,
+        372,
         574,
         657
       ]
     },
-    "head": {
-      "id": 13,
-      "parent": "neck",
-      "pivot_joint": "neck_top",
-      "pivot": [
-        520.5,
-        327.2
-      ],
-      "px": 11494,
-      "pieces": 2,
-      "main_piece": 1.0,
-      "bbox": [
-        411,
-        184,
-        546,
-        345
-      ]
-    },
-    "head_hair": {
-      "id": 14,
-      "parent": "head",
-      "pivot_joint": "neck_top",
-      "pivot": [
-        520.5,
-        327.2
-      ],
-      "px": 23645,
-      "pieces": 27,
-      "main_piece": 1.0,
-      "bbox": [
-        402,
-        129,
-        625,
-        341
-      ]
-    },
-    "strand_l": {
-      "id": 15,
-      "parent": "head",
-      "pivot_joint": "strand_top",
-      "pivot": [
-        488.6,
-        219.0
-      ],
-      "px": 1024,
-      "pieces": 1,
-      "main_piece": 1.0,
-      "bbox": [
-        484,
-        219,
-        514,
-        333
-      ]
-    },
     "upper_arm_l": {
-      "id": 16,
+      "id": 12,
       "parent": "torso",
       "pivot_joint": "l_shoulder",
       "pivot": [
         511.9,
         409.3
       ],
-      "px": 21719,
+      "px": 20941,
       "pieces": 4,
       "main_piece": 1.0,
       "bbox": [
         487,
-        356,
+        371,
         597,
         623
       ]
     },
     "forearm_l": {
-      "id": 17,
+      "id": 13,
       "parent": "upper_arm_l",
       "pivot_joint": "l_elbow",
       "pivot": [
@@ -390,7 +318,7 @@
       ]
     },
     "hand_l": {
-      "id": 18,
+      "id": 14,
       "parent": "forearm_l",
       "pivot_joint": "l_wrist",
       "pivot": [
@@ -405,6 +333,78 @@
         776,
         522,
         910
+      ]
+    },
+    "neck": {
+      "id": 15,
+      "parent": "torso",
+      "pivot_joint": "neck",
+      "pivot": [
+        511.9,
+        409.3
+      ],
+      "px": 3315,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        482,
+        321,
+        552,
+        401
+      ]
+    },
+    "head": {
+      "id": 16,
+      "parent": "neck",
+      "pivot_joint": "neck_top",
+      "pivot": [
+        520.5,
+        327.2
+      ],
+      "px": 11496,
+      "pieces": 2,
+      "main_piece": 1.0,
+      "bbox": [
+        411,
+        184,
+        546,
+        345
+      ]
+    },
+    "head_hair": {
+      "id": 17,
+      "parent": "head",
+      "pivot_joint": "neck_top",
+      "pivot": [
+        520.5,
+        327.2
+      ],
+      "px": 23644,
+      "pieces": 27,
+      "main_piece": 1.0,
+      "bbox": [
+        402,
+        129,
+        625,
+        341
+      ]
+    },
+    "strand_l": {
+      "id": 18,
+      "parent": "head",
+      "pivot_joint": "strand_top",
+      "pivot": [
+        488.6,
+        219.0
+      ],
+      "px": 1024,
+      "pieces": 1,
+      "main_piece": 1.0,
+      "bbox": [
+        484,
+        219,
+        514,
+        333
       ]
     },
     "ponytail": {
