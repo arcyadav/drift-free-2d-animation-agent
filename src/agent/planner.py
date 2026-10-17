@@ -106,8 +106,9 @@ FEW_SHOT = [
 def ask_llm(text, missing, lib):
     """fill only the missing slots, by choosing from enums."""
     props = {}
+    base = [a for a in lib["actions"] if not a.startswith("walk_")]   # mood walks come from walk + mood
     if "action" in missing:
-        props["action"] = {"type": "string", "enum": lib["actions"]}
+        props["action"] = {"type": "string", "enum": base}
     if "expression" in missing:
         props["expression"] = {"type": "string", "enum": lib["expressions"]}
     if not props:
@@ -117,7 +118,7 @@ def ask_llm(text, missing, lib):
                       for q, a in FEW_SHOT)
     msgs = [{"role": "system", "content":
              "You map an animation request for a cartoon girl to library choices. "
-             f"Actions: {lib['actions']}. Expressions: {lib['expressions']}. "
+             f"Actions: {base}. Expressions: {lib['expressions']}. "
              "Answer only with JSON."},
             {"role": "user", "content": f"{shots}\nRequest: \"{text}\" ->"}]
     out = llm.chat_json(msgs, schema)
