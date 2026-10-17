@@ -5,9 +5,9 @@
   "frames": 35,
   "loop": true,
   "source": "code keyframes",
-  "stride_per_cycle": 1.167,
+  "stride_per_cycle": 1.1,
   "cycle_frames": 35,
-  "bounce": 0.063,
+  "bounce": 0.056,
   "contact_frames": {
     "l": 21,
     "r": 21

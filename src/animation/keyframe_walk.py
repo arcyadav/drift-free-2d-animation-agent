@@ -31,9 +31,12 @@ from src.utils.io import save_text
 STYLE = {
     "cycle_s": 1.44,       # ~1.4 steps / s: relaxed pace (2 steps/s looked hurried; measured
                            # from a reference AI walk video, see docs)
-    "step": 0.70,          # ankle travel under the body during stance (leg lengths)
+    "step": 0.66,          # ankle travel under the body during stance (leg lengths)
     "stance": 0.6,         # share of the cycle a foot is on the ground
-    "lift": 0.09,          # swing-foot lift at mid-swing
+    "lift": 0.03,          # swing-foot lift at mid-swing: low, relaxed (higher kicked the thigh up)
+    "swing_lag": 1.8,      # >1: the swinging foot moves forward later in the swing
+    "foot_back": 0.0,      # footprints shifted behind the hips (evens the thigh swing, but more
+                           # than ~0.02 makes the back foot unreachable: it slips)
     "knee_soft": 3.0,      # deg: stance knee almost straight (it vaults the body)
     # Real walking: the support leg stays nearly straight (a stilt) and the body vaults over
     # it, falling forward into the next step. Bending the support knee instead looks like a
@@ -71,10 +74,12 @@ def ankle_body(p, st):
     s, sf = st["step"], st["stance"]
     if p < sf:
         q = p / sf
-        x = s / 2 - s * q
+        x = s / 2 - s * q - st["foot_back"]
         return np.array([x, st["ankle_h"]]), True              # heel lift added in build()
     q = (p - sf) / (1 - sf)
-    x = -s / 2 + s * smooth(q)
+    # the foot travels forward late in the swing (after the knee has started to straighten):
+    # swinging it forward early with a bent knee kicked the thigh up toward the body
+    x = -s / 2 + s * smooth(q) ** st["swing_lag"] - st["foot_back"]
     y = st["ankle_h"] + st["heel_min"] * (1 - q) + st["lift"] * np.sin(np.pi * q)
     return np.array([x, y]), False
 
@@ -130,7 +135,7 @@ def build(st=STYLE):
                     else 1 - smooth((q - st["load_peak"]) / (0.45 - st["load_peak"]))
                 H[f] -= st["settle"] * bump
     # anticipation: descend steadily into each heel strike instead of dropping at contact
-    Hc = st["ankle_h"] + np.sqrt(d_soft ** 2 - (st["step"] / 2) ** 2)
+    Hc = st["ankle_h"] + np.sqrt(d_soft ** 2 - (st["step"] / 2 - st["foot_back"]) ** 2)
     strikes = sorted(int(round((1 - ph) % 1 * F)) % F for ph in phase.values())
     for f in range(F):
         until = min((c - f) % F for c in strikes)
@@ -146,7 +151,7 @@ def build(st=STYLE):
         for k in range(n_st + 1):
             f = (start + k) % F
             q = k / (st["stance"] * F)
-            x = st["step"] / 2 - st["step"] * q
+            x = st["step"] / 2 - st["step"] * q - st["foot_back"]
             flat = st["ankle_h"] + np.sqrt(max(d_soft ** 2 - x ** 2, 0.0))
             need = max(0.0, H[f] - flat, heel_ramp(q))
             run_max = max(run_max, need) if q > 0.4 else need
