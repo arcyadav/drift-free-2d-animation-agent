@@ -29,11 +29,12 @@ from src import config
 from src.utils.io import save_text
 
 STYLE = {
-    "cycle_s": 1.0,        # two steps per second (normal cadence)
-    "step": 0.62,          # ankle travel under the body during stance (leg lengths)
+    "cycle_s": 1.44,       # ~1.4 steps / s: relaxed pace (2 steps/s looked hurried; measured
+                           # from a reference AI walk video, see docs)
+    "step": 0.70,          # ankle travel under the body during stance (leg lengths)
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.09,          # swing-foot lift at mid-swing
-    "knee_soft": 6.0,      # deg: stance knee never locks straight
+    "knee_soft": 3.0,      # deg: stance knee almost straight (it vaults the body)
     # Real walking: the support leg stays nearly straight (a stilt) and the body vaults over
     # it, falling forward into the next step. Bending the support knee instead looks like a
     # lunge / penguin. So: hip height = what the support leg reaches with a soft knee,
@@ -45,9 +46,9 @@ STYLE = {
                            # heel strike (a controlled fall onto the front foot, no drop)
     "heel_min": 0.08,      # heel lift at toe-off (leg lengths)
     "ankle_h": 0.20,       # ankle above the ground (her sneaker is tall)
-    "arm_swing": 13.0,     # deg each way
-    "elbow": (6.0, 16.0),  # elbow bend (back, forward)
-    "lean": 5.0,           # deg: upper body tips forward from the hips (falling into the step)
+    "arm_swing": 7.0,      # deg each way: relaxed arms (13 swung like marching)
+    "elbow": (4.0, 10.0),  # elbow bend (back, forward)
+    "lean": 3.0,           # deg: upper body tips forward from the hips (falling into the step)
     "chest_counter": 0.4,  # chest tips opposite to the hips (share of hip_tilt)
     "head_nod": 0.0,       # deg: head dip after 'down' — any visible nod reads as a chicken
     "hip_tilt": 3.0,       # deg: pelvis tips forward/back once per step (peaks at push-off)
