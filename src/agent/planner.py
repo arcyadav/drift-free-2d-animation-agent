@@ -36,9 +36,12 @@ ACTION_WORDS = {
 }
 EXPRESSION_WORDS = {
     "smile": ["happ", "smil", "cheer", "joy", "glad", "excit", "friendly", "warm"],
-    "sad": ["sad", "unhapp", "down cast", "gloom", "upset", "cry", "tear", "sorrow", "heartbroken"],
+    "sad": ["sad", "unhapp", "down cast", "gloom", "upset", "cry", "tear", "sorrow", "heartbroken",
+            "griev", "grief", "mourn", "depress", "lonely"],
     "worried": ["worr", "anxious", "nervous", "uneasy", "tense", "concern"],
     "shocked": ["shock", "surpris", "startl", "gasp", "stun", "amazed"],
+    "thoughtful": ["think", "thought", "wonder", "ponder", "hmm", "curious", "interest", "consider",
+                   "puzzl", "reflect"],
     "neutral": ["neutral", "calm", "blank", "no expression", "normally"],
 }
 SPEED_WORDS = [(0.6, ["very slow", "really slow", "sluggish"]), (0.75, ["slow", "slowly", "gently", "lazily", "tired"]),
@@ -88,6 +91,7 @@ FEW_SHOT = [
     ("she just heard terrible news", {"action": "look_down", "expression": "sad"}),
     ("she heads to college", {"action": "walk", "expression": "neutral"}),
     ("she realises she lost her phone", {"action": "idle", "expression": "shocked"}),
+    ("she wonders about the strange letter", {"action": "look_down", "expression": "thoughtful"}),
 ]
 
 

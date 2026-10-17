@@ -1,42 +1,200 @@
 [
-  {"q": "make her wave happily", "action": "wave", "expression": "smile"},
-  {"q": "she waves hello", "action": "wave"},
-  {"q": "wave goodbye with a big smile", "action": "wave", "expression": "smile"},
-  {"q": "she says bye to her mom", "action": "wave", "expression": "smile"},
-  {"q": "she greets her friend across the street", "action": "wave", "expression": "smile"},
-  {"q": "she waves but looks worried", "action": "wave", "expression": "worried"},
-  {"q": "a nervous little wave", "action": "wave", "expression": "worried"},
-  {"q": "she waves at the bus, surprised", "action": "wave", "expression": "shocked"},
-  {"q": "say hi to the camera", "action": "wave"},
-  {"q": "she spots her best friend and waves excitedly", "action": "wave", "expression": "smile"},
-  {"q": "she walks to the left", "action": "walk", "direction": "left"},
-  {"q": "she walks slowly to the right", "action": "walk", "speed": 0.75, "direction": "right"},
-  {"q": "walk fast", "action": "walk", "speed": 1.3},
-  {"q": "she strolls along the road", "action": "walk"},
-  {"q": "she heads to college", "action": "walk"},
-  {"q": "she hurries to catch the bus", "action": "walk", "speed": 1.3},
-  {"q": "she walks home tired", "action": "walk", "speed": 0.75},
-  {"q": "she crosses the street", "action": "walk"},
-  {"q": "walk to the right for 8 seconds", "action": "walk", "direction": "right", "seconds": 8},
-  {"q": "she leaves the house", "action": "walk"},
-  {"q": "she looks down sadly", "action": "look_down", "expression": "sad"},
-  {"q": "she looks down at her feet", "action": "look_down"},
-  {"q": "make her look down, slowly", "action": "look_down", "speed": 0.75},
-  {"q": "she just heard terrible news", "action": "look_down", "expression": "sad"},
-  {"q": "she failed her exam", "action": "look_down", "expression": "sad"},
-  {"q": "she is heartbroken", "expression": "sad"},
-  {"q": "she stares at the floor, worried", "action": "look_down", "expression": "worried"},
-  {"q": "she lowers her eyes", "action": "look_down"},
-  {"q": "she stands and waits", "action": "idle"},
-  {"q": "she stands there calmly", "action": "idle", "expression": "neutral"},
-  {"q": "she is waiting for the bus", "action": "idle"},
-  {"q": "she realises she lost her phone", "expression": "shocked"},
-  {"q": "she gasps in surprise", "expression": "shocked"},
-  {"q": "she is shocked", "expression": "shocked"},
-  {"q": "she stands, smiling", "action": "idle", "expression": "smile"},
-  {"q": "she stands looking anxious", "action": "idle", "expression": "worried"},
-  {"q": "she is happy", "expression": "smile"},
-  {"q": "she feels uneasy", "expression": "worried"},
-  {"q": "idle for 6 seconds", "action": "idle", "seconds": 6},
-  {"q": "she can't believe her eyes", "expression": "shocked"}
+ {
+  "q": "make her wave happily",
+  "action": "wave",
+  "expression": "smile"
+ },
+ {
+  "q": "she waves hello",
+  "action": "wave"
+ },
+ {
+  "q": "wave goodbye with a big smile",
+  "action": "wave",
+  "expression": "smile"
+ },
+ {
+  "q": "she says bye to her mom",
+  "action": "wave",
+  "expression": "smile"
+ },
+ {
+  "q": "she greets her friend across the street",
+  "action": "wave",
+  "expression": "smile"
+ },
+ {
+  "q": "she waves but looks worried",
+  "action": "wave",
+  "expression": "worried"
+ },
+ {
+  "q": "a nervous little wave",
+  "action": "wave",
+  "expression": "worried"
+ },
+ {
+  "q": "she waves at the bus, surprised",
+  "action": "wave",
+  "expression": "shocked"
+ },
+ {
+  "q": "say hi to the camera",
+  "action": "wave"
+ },
+ {
+  "q": "she spots her best friend and waves excitedly",
+  "action": "wave",
+  "expression": "smile"
+ },
+ {
+  "q": "she walks to the left",
+  "action": "walk",
+  "direction": "left"
+ },
+ {
+  "q": "she walks slowly to the right",
+  "action": "walk",
+  "speed": 0.75,
+  "direction": "right"
+ },
+ {
+  "q": "walk fast",
+  "action": "walk",
+  "speed": 1.3
+ },
+ {
+  "q": "she strolls along the road",
+  "action": "walk"
+ },
+ {
+  "q": "she heads to college",
+  "action": "walk"
+ },
+ {
+  "q": "she hurries to catch the bus",
+  "action": "walk",
+  "speed": 1.3
+ },
+ {
+  "q": "she walks home tired",
+  "action": "walk",
+  "speed": 0.75
+ },
+ {
+  "q": "she crosses the street",
+  "action": "walk"
+ },
+ {
+  "q": "walk to the right for 8 seconds",
+  "action": "walk",
+  "direction": "right",
+  "seconds": 8
+ },
+ {
+  "q": "she leaves the house",
+  "action": "walk"
+ },
+ {
+  "q": "she looks down sadly",
+  "action": "look_down",
+  "expression": "sad"
+ },
+ {
+  "q": "she looks down at her feet",
+  "action": "look_down"
+ },
+ {
+  "q": "make her look down, slowly",
+  "action": "look_down",
+  "speed": 0.75
+ },
+ {
+  "q": "she just heard terrible news",
+  "action": "look_down",
+  "expression": "sad"
+ },
+ {
+  "q": "she failed her exam",
+  "action": "look_down",
+  "expression": "sad"
+ },
+ {
+  "q": "she is heartbroken",
+  "expression": "sad"
+ },
+ {
+  "q": "she stares at the floor, worried",
+  "action": "look_down",
+  "expression": "worried"
+ },
+ {
+  "q": "she lowers her eyes",
+  "action": "look_down"
+ },
+ {
+  "q": "she stands and waits",
+  "action": "idle"
+ },
+ {
+  "q": "she stands there calmly",
+  "action": "idle",
+  "expression": "neutral"
+ },
+ {
+  "q": "she is waiting for the bus",
+  "action": "idle"
+ },
+ {
+  "q": "she realises she lost her phone",
+  "expression": "shocked"
+ },
+ {
+  "q": "she gasps in surprise",
+  "expression": "shocked"
+ },
+ {
+  "q": "she is shocked",
+  "expression": "shocked"
+ },
+ {
+  "q": "she stands, smiling",
+  "action": "idle",
+  "expression": "smile"
+ },
+ {
+  "q": "she stands looking anxious",
+  "action": "idle",
+  "expression": "worried"
+ },
+ {
+  "q": "she is happy",
+  "expression": "smile"
+ },
+ {
+  "q": "she feels uneasy",
+  "expression": "worried"
+ },
+ {
+  "q": "idle for 6 seconds",
+  "action": "idle",
+  "seconds": 6
+ },
+ {
+  "q": "she can't believe her eyes",
+  "expression": "shocked"
+ },
+ {
+  "q": "she looks down, thinking hmm",
+  "action": "look_down",
+  "expression": "thoughtful"
+ },
+ {
+  "q": "she wonders what that sound was",
+  "expression": "thoughtful"
+ },
+ {
+  "q": "she is walking lost in thoughts and grieved",
+  "action": "walk"
+ }
 ]

@@ -29,6 +29,11 @@
       "eyes": "sad",
       "brows": "neutral",
       "mouth": "neutral"
+    },
+    "thoughtful": {
+      "eyes": "eyes_down",
+      "brows": "neutral",
+      "mouth": "neutral"
     }
   },
   "blink": [

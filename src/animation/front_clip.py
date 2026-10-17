@@ -30,7 +30,9 @@ WRIST_LAG = 0.08            # s: the hand trails the forearm by this much ...
 WRIST_GAIN = 0.9            # ... turning by this share of the forearm's recent swing ...
 WRIST_MAX = 18.0            # ... at most this many degrees
 # actions with their own face (user's choice for look_down: neutral face, eyes of the sad image)
+# (user's reads: sad eyes + tilt = quietly looking down; eyes_down + tilt = thinking "hmm")
 ACTION_FACE = {"look_down": {"eyes": "sad", "brows": "neutral", "mouth": "neutral"}}
+ACTION_FACE_BY_EXPR = {("look_down", "thoughtful"): {"eyes": "eyes_down", "brows": "neutral", "mouth": "neutral"}}
 NO_BLINK = {"look_down"}
 GAZE_FROM = 2.0                             # deg of head tilt after which the eyes look down                    # blinking from open eyes looks wrong while looking down
 HEAD_TILT = -3.0            # deg toward her left (viewer's right) while the hand is up
@@ -157,7 +159,7 @@ class FrontClip:
             for layer in FACE_LAYERS:
                 src = blink if (layer == "eyes" and blink) else recipe[layer]
                 if self.action in ACTION_FACE and not (layer == "eyes" and blink):
-                    face = ACTION_FACE[self.action]
+                    face = ACTION_FACE_BY_EXPR.get((self.action, self.expression), ACTION_FACE[self.action])
                     src = face[layer] if (layer != "eyes" or tilted) else "neutral"
                 if (layer, src) in self.face:
                     imgs[f"face_{layer}"] = self.face[(layer, src)]

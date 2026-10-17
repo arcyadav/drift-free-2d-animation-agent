@@ -35,6 +35,8 @@ RECIPES = {
     "worried": {"eyes": "worried", "brows": "worried", "mouth": "worried"},
     "shocked": {"eyes": "shocked", "brows": "shocked", "mouth": "shocked"},
     "look_down": {"eyes": "sad", "brows": "neutral", "mouth": "neutral"},
+    # user's read of eyes_down + head tilt: looking down and thinking ("hmm", "interesting")
+    "thoughtful": {"eyes": "eyes_down", "brows": "neutral", "mouth": "neutral"},
 }
 BLINK = ["eyes_half", "eyes_closed", "eyes_half"]   # eye images of a blink (between open frames)
 PUPIL_L = 30            # pupils / iris: darkest blobs in the face
