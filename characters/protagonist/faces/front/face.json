@@ -32,17 +32,87 @@
     43.8,
     25.0
   ],
+  "eye_shift": {
+    "eyes_closed": [
+      [
+        3.4,
+        -3.0
+      ],
+      [
+        -2.1,
+        -2.0
+      ]
+    ],
+    "eyes_down": [
+      [
+        0.3,
+        -18.0
+      ],
+      [
+        -0.4,
+        -18.0
+      ]
+    ],
+    "eyes_half": [
+      [
+        1.8,
+        -9.0
+      ],
+      [
+        -2.0,
+        -8.0
+      ]
+    ],
+    "sad": [
+      [
+        0.9,
+        -5.0
+      ],
+      [
+        1.1,
+        -5.0
+      ]
+    ],
+    "shocked": [
+      [
+        -0.5,
+        2.0
+      ],
+      [
+        -0.1,
+        2.0
+      ]
+    ],
+    "smile": [
+      [
+        -0.1,
+        -0.8
+      ],
+      [
+        -0.7,
+        2.0
+      ]
+    ],
+    "worried": [
+      [
+        -0.1,
+        -2.0
+      ],
+      [
+        -0.0,
+        -1.0
+      ]
+    ]
+  },
   "images": [
     "eyes_closed",
     "eyes_down",
     "eyes_half",
-    "gaze_down",
     "neutral",
     "sad",
     "shocked",
     "smile",
-    "worried",
-    "z"
+    "worried"
   ],
   "identity_max_diff": 0.0,
   "fixes": {
@@ -66,23 +136,16 @@
     "worried": {
       "skin_px": 10859,
       "mean_shift_dE": 0.4
-    },
-    "z": {
-      "skin_px": 10857,
-      "mean_shift_dE": 1.5,
-      "sharpened": true
     }
   },
   "outside_zone_mean_dE": {
     "eyes_closed": 0.67,
     "eyes_down": 4.23,
+    "eyes_half": 0.67,
     "sad": 3.36,
     "shocked": 2.87,
     "smile": 2.91,
-    "worried": 2.94,
-    "z": 4.15,
-    "eyes_half": 0.67,
-    "gaze_down": 0.67
+    "worried": 2.94
   },
   "layers": [
     "eyes",

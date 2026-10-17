@@ -158,8 +158,7 @@ class FrontClip:
                 src = blink if (layer == "eyes" and blink) else recipe[layer]
                 if self.action in ACTION_FACE and not (layer == "eyes" and blink):
                     face = ACTION_FACE[self.action]
-                    if layer != "eyes" or tilted:
-                        src = face[layer]
+                    src = face[layer] if (layer != "eyes" or tilted) else "neutral"
                 if (layer, src) in self.face:
                     imgs[f"face_{layer}"] = self.face[(layer, src)]
             blinks += blink == "eyes_closed"

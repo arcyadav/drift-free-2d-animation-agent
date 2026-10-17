@@ -31,10 +31,10 @@ LAYERS = ("eyes", "brows", "mouth")          # drawn in this order over the head
 RECIPES = {
     "neutral": {"eyes": "neutral", "brows": "neutral", "mouth": "neutral"},
     "smile": {"eyes": "smile", "brows": "smile", "mouth": "smile"},
-    "sad": {"eyes": "gaze_down", "brows": "sad", "mouth": "sad"},
+    "sad": {"eyes": "sad", "brows": "sad", "mouth": "sad"},
     "worried": {"eyes": "worried", "brows": "worried", "mouth": "worried"},
     "shocked": {"eyes": "shocked", "brows": "shocked", "mouth": "shocked"},
-    "look_down": {"eyes": "gaze_down", "brows": "neutral", "mouth": "neutral"},
+    "look_down": {"eyes": "sad", "brows": "neutral", "mouth": "neutral"},
 }
 BLINK = ["eyes_half", "eyes_closed", "eyes_half"]   # eye images of a blink (between open frames)
 PUPIL_L = 30            # pupils / iris: darkest blobs in the face
@@ -43,8 +43,8 @@ BROW_UP = 0.62          # brow centre above the pupil (x eye spacing)
 FEATHER = 3.5           # px of soft edge on every layer
 SYNTH_BLINK = True      # blink frames drawn from the neutral eyes instead of the soft edits
 LASH_PX = 4.0           # lash line thickness at the lid
-GAZE_SHIFT = 0.28       # look down: iris slides down by this share of the eye opening ...
-GAZE_LID = 0.30         # ... and the upper lid comes down this far
+EYE_ALIGN_MAX = 18      # px: largest allowed eye re-alignment
+EYE_RING = 5            # px around the eye opening that belong to the eye layer (lashes)
 COVER_RING = 3          # px around the opening also repainted (its outline / lash)
 COLOR_SIGMA = 14        # smoothness (px) of the skin-tone correction field
 SOFT_RATIO = 0.6        # image sharper than this share of the neutral counts as fine ...
@@ -138,6 +138,45 @@ def eye_opening(lab, pupil, gap):
     return ndi.binary_fill_holes(ndi.binary_closing(keep, iterations=2)) & zone
 
 
+def aligned_eyes(im, neutral, open_n, info, brow_block, head):
+    """Eyes of an expression image, each moved so its eye opening sits where the neutral
+    eye sits (image edits drift features by ~10 px), cut tightly around the eye only
+    (opening + lashes): no pieces of the expression's brows come along."""
+    lab = rgb2lab(im[..., :3] / 255.0)
+    gap = info["eye_spacing"]
+    out = np.zeros_like(im)
+    shifts = []
+    for p, on in zip(info["pupils"], open_n):
+        # the expression's own eye: darkest blob near the neutral pupil (iris), its opening
+        win = ellipse(lab.shape[:2], np.array(p), 0.45 * gap, 0.40 * gap) & head
+        dark = win & (lab[..., 0] < PUPIL_L)
+        cl, n = ndi.label(dark)
+        if n == 0:
+            continue
+        sizes = ndi.sum(dark, cl, range(1, n + 1))
+        c = np.array(ndi.center_of_mass(cl == np.argmax(sizes) + 1))[::-1]
+        oe = eye_opening(lab, c, gap)
+        if oe.sum() < 50:
+            oe = ndi.shift(on.astype(float), (c[1] - p[1], c[0] - p[0]), order=0) > 0.5
+        ys_n, xs_n = np.where(on)
+        ys_e, xs_e = np.where(oe)
+        # align the opening's top edge (lash line) and horizontal centre
+        dx = float(xs_n.mean() - xs_e.mean())
+        dy = float(np.percentile(ys_n, 5) - np.percentile(ys_e, 5))
+        dx, dy = np.clip([dx, dy], -EYE_ALIGN_MAX, EYE_ALIGN_MAX)
+        M = np.float32([[1, 0, dx], [0, 1, dy]])
+        import cv2
+        moved = cv2.warpAffine(im, M, (im.shape[1], im.shape[0]), flags=cv2.INTER_LINEAR)
+        mask_e = cv2.warpAffine(oe.astype(np.uint8), M, (im.shape[1], im.shape[0]), flags=cv2.INTER_NEAREST) > 0
+        tight = ndi.binary_dilation(on | mask_e, iterations=EYE_RING) & head & ~brow_block
+        a = soft(tight)
+        sel = a > 0
+        out[sel, :3] = moved[sel, :3]
+        out[..., 3] = np.maximum(out[..., 3], (a * 255).astype(np.uint8))
+        shifts.append([round(float(dx), 1), round(float(dy), 1)])
+    return out, shifts
+
+
 def synth_blinks(neutral, pupils, gap, frames=(("eyes_half", 0.5, 0.0), ("eyes_closed", 1.0, 0.0))):
     """Blink frames drawn from the neutral eyes (the generated blink images were soft and
     off-tone): skin painted over the opening (inpainting from the surrounding skin), and
@@ -229,21 +268,29 @@ def run(character, view="front"):
     face_zone = ndi.binary_dilation(np.any(list(zones.values()), 0), iterations=12) & head
     if SYNTH_BLINK:                                                  # drawn from the neutral eyes
         imgs.update(synth_blinks(neutral, info["pupils"], info["eye_spacing"]))
-        # downward gaze in her own eye style (the generated eyes_down looked sleepy / sly)
-        imgs.update(synth_blinks(neutral, info["pupils"], info["eye_spacing"],
-                                 frames=(("gaze_down", GAZE_LID, GAZE_SHIFT),)))
     fixes = {}
     for k in list(imgs):
-        if k == "neutral" or (SYNTH_BLINK and k in ("eyes_half", "eyes_closed", "gaze_down")):
+        if k == "neutral" or (SYNTH_BLINK and k in ("eyes_half", "eyes_closed")):
             continue
         imgs[k], fixes[k] = match_to_neutral(imgs[k], neutral, face_zone)
 
     out = char / "faces" / view
+    lab_n = rgb2lab(neutral[..., :3] / 255.0)
+    open_n = [eye_opening(lab_n, np.array(p), info["eye_spacing"]) for p in info["pupils"]]
+    brow_block = ndi.binary_dilation(zones["brows"], iterations=2)
+    info["eye_shift"] = {}
     for layer in LAYERS:
         (out / layer).mkdir(parents=True, exist_ok=True)
+        for old in (out / layer).glob("*.png"):          # only images from the raw assets
+            if old.stem not in imgs:
+                old.unlink()
         for name, im in imgs.items():
-            cut = im.copy()
-            cut[..., 3] = (alpha[layer] * (im[..., 3] > 0) * 255).astype(np.uint8)
+            if layer == "eyes" and name != "neutral":
+                cut, shifts = aligned_eyes(im, neutral, open_n, info, brow_block, head)
+                info["eye_shift"][name] = shifts
+            else:
+                cut = im.copy()
+                cut[..., 3] = (alpha[layer] * (im[..., 3] > 0) * 255).astype(np.uint8)
             save_image(cut, out / layer / f"{name}.png")
 
     # check: the neutral layers over the head reproduce the drawing
