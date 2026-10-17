@@ -2,7 +2,15 @@
 
 Author: Archana Yadav
 Duration: 10 days
-Status: Draft v3.6 (rig-based; classical onboarding — no SAM / no inpainting model; hand-designed walk; mirroring allowed for right-facing views; layered faces; 24 fps on 2s; local open-source LLM/VLM; deployed on HF Spaces)
+Status: Draft v3.7 (rig-based; classical onboarding — no SAM / no inpainting model; hand-designed walk; mirroring allowed for right-facing views; layered faces; 24 fps on 2s; local open-source LLM/VLM; deployed: static HF Space + live demo)
+
+## Links
+| What | Link |
+|---|---|
+| **Live showcase (permanent, public)** | https://huggingface.co/spaces/Arcyadav/drift-free-2d-animation-agent |
+| Showcase page (direct) | https://arcyadav-drift-free-2d-animation-agent.static.hf.space |
+| **Live agent (viva demo)** | run `run_demo.bat` / `python app.py --share` → public `https://<id>.gradio.live` link (72 h, laptop on); intranet: `python app.py --lan` → `http://<laptop-ip>:7860` |
+| Code (GitHub, private) | https://github.com/arcyadav/drift-free-2d-animation-agent |
 
 ---
 
@@ -431,6 +439,7 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 ## 15.2 Deployment as built (Oct 2026)
 Hugging Face now requires a paid PRO plan to host Gradio Spaces on CPU; static Spaces stay free. So:
 - **Permanent public URL (static Space):** https://huggingface.co/spaces/Arcyadav/drift-free-2d-animation-agent
+  (page: https://arcyadav-drift-free-2d-animation-agent.static.hf.space)
   — 12 requests pre-rendered by the agent (rules + local LLM), each with its plan JSON, plus how it works,
   measured results and honest limits. Built by `deploy/build_static.py`.
 - **Live agent (viva demo):** `python app.py --share` (or `run_demo.bat`) runs the full agent incl. the
