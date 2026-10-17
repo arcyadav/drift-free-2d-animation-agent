@@ -20,8 +20,9 @@ from src import config
 from src.agent import llm
 
 # which view each action is drawn in (library actions only)
-ACTION_VIEW = {"walk": "side_left", "wave": "front", "idle": "front", "look_down": "front"}
-DEFAULT_SECONDS = {"walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
+ACTION_VIEW = {"walk": "side_left", "walk_sad": "side_left", "walk_happy": "side_left",
+               "walk_worried": "side_left", "wave": "front", "idle": "front", "look_down": "front"}
+DEFAULT_SECONDS = {"walk_sad": 5.0, "walk_happy": 5.0, "walk_worried": 5.0, "walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
 # expressions each view can show (front: full face layers; side: none cut yet)
 VIEW_EXPRESSIONS = {"front": None, "side_left": ["neutral"]}
 
@@ -35,7 +36,7 @@ ACTION_WORDS = {
     "idle": ["stand", "stands", "standing", "idle", "wait", "waits", "waiting", "stay", "breathe"],
 }
 EXPRESSION_WORDS = {
-    "smile": ["happ", "smil", "cheer", "joy", "glad", "excit", "friendly", "warm"],
+    "smile": ["happ", "smil", "cheer", "joy", "glad", "excit", "friendly", "warm", "hop"],
     "sad": ["sad", "unhapp", "down cast", "gloom", "upset", "cry", "tear", "sorrow", "heartbroken",
             "griev", "grief", "mourn", "depress", "lonely"],
     "worried": ["worr", "anxious", "nervous", "uneasy", "tense", "concern"],
@@ -122,6 +123,11 @@ def validate(plan, lib, notes):
         notes.append(f"action {plan.get('action')!r} not in library {lib['actions']} -> 'wave'"
                      if plan.get("action") else "no action found -> 'wave'")
         plan["action"] = "wave" if "wave" in lib["actions"] else lib["actions"][0]
+    # a walk with a mood → the body-language walk for that mood (side view has no face moods)
+    mood = {"sad": "walk_sad", "smile": "walk_happy", "worried": "walk_worried", "thoughtful": "walk_sad"}
+    if plan["action"] == "walk" and mood.get(plan.get("expression")) in lib["actions"]:
+        notes.append(f"walk + {plan['expression']} -> {mood[plan['expression']]} (body language)")
+        plan["action"] = mood[plan["expression"]]
     view = ACTION_VIEW[plan["action"]]
     plan["view"] = view
     expr = plan.get("expression") or ("smile" if plan["action"] == "wave" else "neutral")

@@ -110,6 +110,9 @@ class Retargeter:
         if lean:
             out["torso"] += -sgn * lean                          # + forward = toward the facing
             out["head"] += -sgn * lean * (1 - HEAD_KEEP_LEAN)    # head stays mostly level
+        pitch = self.m.get("head_pitch", 0.0)                   # mood: head down (+) / up (-)
+        if pitch:
+            out["head"] += -sgn * pitch
         return out
 
     def root_offset(self, t):

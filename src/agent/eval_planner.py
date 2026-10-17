@@ -26,7 +26,7 @@ def score(use_llm):
         for f in FIELDS:
             if f in c:
                 total[f] += 1
-                ok = p[f] == c[f]
+                ok = p[f] == c[f] or (f == "action" and str(p[f]).startswith(c[f] + "_"))
                 right[f] += ok
                 if not ok:
                     ok_all = False

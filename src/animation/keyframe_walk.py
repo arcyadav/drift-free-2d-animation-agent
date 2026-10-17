@@ -280,7 +280,7 @@ def build(st=STYLE):
         "lateral": {f"{s}_{j}": [0.1 if s == "l" else -0.1] * F
                     for s in "lr" for j in ("shoulder", "hip", "knee", "ankle", "wrist")},
         "angles": angles, "root": r4(J["pelvis"]), "contacts": contacts,
-        "torso_lean": st["lean"],
+        "torso_lean": st["lean"], "head_pitch": st.get("head_pitch", 0.0),
         "stats": {"stride_per_cycle": round(stride, 3), "cycle_frames": F,
                   "bounce": round(float(H.max() - H.min()), 3),
                   "contact_frames": {s: int(sum(c)) for s, c in contacts.items()},
@@ -288,8 +288,22 @@ def build(st=STYLE):
     }
 
 
+# body-language moods: the same walk, different posture / tempo (the side view has no face
+# expressions yet, and a mood reads from the body first anyway)
+MOODS = {
+    "walk_sad": {"cycle_s": 1.83, "step": 0.56, "arm_swing": 4.0, "elbow": (3.0, 6.0), "lean": 6.0,
+                 "head_pitch": 9.0, "hip_tilt": 2.0},
+    "walk_happy": {"cycle_s": 1.33, "step": 0.74, "arm_swing": 13.0, "elbow": (6.0, 20.0), "lean": 2.0,
+                   "head_pitch": -3.0, "hip_tilt": 4.0},
+    "walk_worried": {"cycle_s": 1.33, "step": 0.56, "arm_swing": 5.0, "elbow": (8.0, 14.0), "lean": 5.0,
+                     "head_pitch": 4.0, "hip_tilt": 2.0},
+}
+
+
 def run(action="walk"):
-    act = build()
+    st = dict(STYLE)
+    st.update(MOODS.get(action, {}))
+    act = build(st)
     out = config.ROOT / "actions" / action
     out.mkdir(parents=True, exist_ok=True)
     save_text(json.dumps(act), out / "motion.json")
