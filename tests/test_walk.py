@@ -29,7 +29,13 @@ def test_walk():
     heel = np.array(act["joints"]["l_ankle"])[:, 1]
     assert heel[l][-3:].max() > heel[l][:3].min() + 0.03, "heel lifts before toe-off (push-off)"
     assert act.get("torso_lean", 0) >= 3, "upper body leans forward into the step"
-    _, slide = Walker("protagonist").poses(3.0)
+    assert act["frames"] % 4 == 0, "cycle = two equal steps on twos (odd cycles limp)"
+
+    frames, slide = Walker("protagonist").poses(3.0)
+    y = np.array([off[1] for _, off in frames])
+    per_step = act["frames"] // 2 * 24 // act["fps"]
+    a, b = y[:per_step], y[per_step:2 * per_step]
+    assert np.abs(a - b).max() < 0.5, "left and right steps identical (no limp)"
     assert np.mean(slide["locked"]) < 0.5 and np.max(slide["locked"]) < 2.0, slide["locked"]
     print("walk: all checks passed")
 

@@ -29,8 +29,8 @@ from src import config
 from src.utils.io import save_text
 
 STYLE = {
-    "cycle_s": 1.44,       # ~1.4 steps / s: relaxed pace (2 steps/s looked hurried; measured
-                           # from a reference AI walk video, see docs)
+    "cycle_s": 1.5,        # ~1.33 steps / s: relaxed pace measured from a reference AI walk
+                           # video (2 steps / s looked hurried); snapped to a multiple of 4 frames
     "step": 0.66,          # ankle travel under the body during stance (leg lengths)
     "stance": 0.6,         # share of the cycle a foot is on the ground
     "lift": 0.03,          # swing-foot lift at mid-swing: low, relaxed (higher kicked the thigh up)
@@ -109,9 +109,12 @@ def ang(v):
 
 
 def build(st=STYLE):
-    F = int(round(st["cycle_s"] * FPS))
-    speed = st["step"] / (st["stance"] * st["cycle_s"])          # stance foot stands still
-    stride = speed * st["cycle_s"]
+    # a multiple of 4 frames: two equal steps, each a whole number of 'twos' — an odd cycle
+    # (35) made the steps 18 / 17 frames and sampled them differently: a limp
+    F = int(4 * round(st["cycle_s"] * FPS / 4))
+    cycle = F / FPS
+    speed = st["step"] / (st["stance"] * cycle)                  # stance foot stands still
+    stride = speed * cycle
     phase = {"l": 0.0, "r": 0.5}
     phase_frames = {s: (1 - ph) % 1 * F for s, ph in phase.items()}    # frame of heel strike
     # body height: the support leg(s) vault the body with a soft knee; a leg late in its

@@ -2,14 +2,14 @@
   "action": "walk",
   "view": "side",
   "fps": 24,
-  "frames": 35,
+  "frames": 36,
   "loop": true,
   "source": "code keyframes",
   "stride_per_cycle": 1.1,
-  "cycle_frames": 35,
+  "cycle_frames": 36,
   "bounce": 0.046,
   "contact_frames": {
-    "l": 21,
-    "r": 21
+    "l": 22,
+    "r": 22
   }
 }
