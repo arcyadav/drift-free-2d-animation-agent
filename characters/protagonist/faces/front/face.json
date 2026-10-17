@@ -41,7 +41,8 @@
     "sad",
     "shocked",
     "smile",
-    "worried"
+    "worried",
+    "z"
   ],
   "identity_max_diff": 0.0,
   "fixes": {
@@ -65,16 +66,22 @@
     "worried": {
       "skin_px": 10859,
       "mean_shift_dE": 0.4
+    },
+    "z": {
+      "skin_px": 10857,
+      "mean_shift_dE": 1.5,
+      "sharpened": true
     }
   },
   "outside_zone_mean_dE": {
     "eyes_closed": 0.67,
     "eyes_down": 4.23,
-    "eyes_half": 0.67,
     "sad": 3.36,
     "shocked": 2.87,
     "smile": 2.91,
     "worried": 2.94,
+    "z": 4.15,
+    "eyes_half": 0.67,
     "gaze_down": 0.67
   },
   "layers": [

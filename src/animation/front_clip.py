@@ -29,9 +29,10 @@ BLINK_EVERY = (2.6, 3.8)    # s between blinks (random in this range, fixed seed
 WRIST_LAG = 0.08            # s: the hand trails the forearm by this much ...
 WRIST_GAIN = 0.9            # ... turning by this share of the forearm's recent swing ...
 WRIST_MAX = 18.0            # ... at most this many degrees
-ACTION_EYES = {"look_down": "gaze_down"}    # actions that set the gaze
+# actions with their own face (user's choice for look_down: neutral face, eyes of the sad image)
+ACTION_FACE = {"look_down": {"eyes": "sad", "brows": "neutral", "mouth": "neutral"}}
 NO_BLINK = {"look_down"}
-GAZE_FROM = 2.0                             # px of head dip after which the eyes look down                    # blinking from open eyes looks wrong while looking down
+GAZE_FROM = 2.0                             # deg of head tilt after which the eyes look down                    # blinking from open eyes looks wrong while looking down
 HEAD_TILT = -3.0            # deg toward her left (viewer's right) while the hand is up
 SPRINGS = {"ponytail": dict(k=110.0, d=8.0, gain=0.9), "strand_r": dict(k=220.0, d=12.0, gain=0.6)}
 
@@ -123,8 +124,8 @@ class FrontClip:
                     a = -c["k"] * st[0] - c["d"] * st[1] - c["gain"] * acc
                     st[1] += a * h; st[0] += st[1] * h
                 world[n_] = tilt_head + st[0]
-            # front-view 'nod': the whole head (hair, face) dips onto the neck
-            drop = float(world.pop("head_drop", 0.0))
+            drop = float(world.pop("head_drop", 0.0))                # optional head dip (px)
+            tilted = abs(world.get("head", 0.0) - tilt) >= GAZE_FROM
             local = to_local(self.meta, world)
             # a smiling wave smiles while the hand is up; otherwise the planned expression
             if self.expression in (None, "smile") and self.m.get("hand"):
@@ -133,7 +134,7 @@ class FrontClip:
                 expr = self.expression or "neutral"
             for _ in range(ON_TWOS):
                 if len(out) < n:
-                    out.append((local, hand, expr, blink[len(out)], drop))
+                    out.append((local, hand, expr, blink[len(out)], (drop, tilted)))
         return out
 
     def render(self, out_path):
@@ -146,7 +147,7 @@ class FrontClip:
         frames = self.frames()
         opened = 0
         blinks = 0
-        for local, hand, expr, blink, drop in frames:
+        for local, hand, expr, blink, (drop, tilted) in frames:
             imgs = dict(self.imgs)
             for part, pose in hand.items():
                 if pose == "open" and part in self.swaps:
@@ -155,8 +156,10 @@ class FrontClip:
             recipe = self.recipes["recipes"].get(expr, self.recipes["recipes"]["neutral"])
             for layer in FACE_LAYERS:
                 src = blink if (layer == "eyes" and blink) else recipe[layer]
-                if layer == "eyes" and not blink and self.action in ACTION_EYES and drop >= GAZE_FROM:
-                    src = ACTION_EYES[self.action]
+                if self.action in ACTION_FACE and not (layer == "eyes" and blink):
+                    face = ACTION_FACE[self.action]
+                    if layer != "eyes" or tilted:
+                        src = face[layer]
                 if (layer, src) in self.face:
                     imgs[f"face_{layer}"] = self.face[(layer, src)]
             blinks += blink == "eyes_closed"

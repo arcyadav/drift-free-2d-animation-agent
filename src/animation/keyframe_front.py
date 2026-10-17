@@ -3,7 +3,7 @@
 Same motion.json format as video_import (world rotation deltas per part + hand poses), so
 front_clip renders them unchanged.
   idle      : weight shifts, a slow head sway, arms swaying slightly (loops)
-  look_down : the head dips a few px onto the neck (2D nod) and stays; downcast eyes (gaze_down)
+  look_down : the head tilts and stays; neutral face with the eyes of the sad image
               (set by the action, see front_clip.ACTION_EYES)
 
 Usage: python -m src.animation.keyframe_front
@@ -39,8 +39,7 @@ def look_down(seconds=4.0):
     t = np.arange(int(seconds * FPS)) / FPS
     down = smooth((t - 0.4) / 0.8)                                 # lowers over 0.8 s, then holds
     return {
-        "head_drop": 6.0 * down,                                   # head dips onto the neck: 2D nod
-        "head": 0.8 * np.sin(2 * np.pi * t / seconds) * down,       # tiny sway, no sideways tilt
+        "head": 5.0 * down + 0.6 * np.sin(2 * np.pi * t / seconds) * down,   # tilts and stays
         "upper_arm_l": -1.0 * down,
         "upper_arm_r": 1.0 * down,
     }, False
