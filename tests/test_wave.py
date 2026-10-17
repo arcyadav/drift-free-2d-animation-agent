@@ -53,7 +53,7 @@ def test_wave():
     from src.animation.front_clip import FrontClip
     clip = FrontClip("protagonist", "wave")
     rel = []
-    for local, hand, _, _ in clip.frames():
+    for local, hand, _, _, _ in clip.frames():
         if hand.get("hand_l") == "open":
             rel.append(local.get("hand_l", 0.0))
     assert np.ptp(rel) > 10, f"wrist bends while waving ({np.ptp(rel):.0f} deg range)"

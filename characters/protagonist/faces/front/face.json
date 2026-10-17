@@ -36,6 +36,7 @@
     "eyes_closed",
     "eyes_down",
     "eyes_half",
+    "gaze_down",
     "neutral",
     "sad",
     "shocked",
@@ -73,7 +74,8 @@
     "sad": 3.36,
     "shocked": 2.87,
     "smile": 2.91,
-    "worried": 2.94
+    "worried": 2.94,
+    "gaze_down": 0.67
   },
   "layers": [
     "eyes",

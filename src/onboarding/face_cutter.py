@@ -31,10 +31,10 @@ LAYERS = ("eyes", "brows", "mouth")          # drawn in this order over the head
 RECIPES = {
     "neutral": {"eyes": "neutral", "brows": "neutral", "mouth": "neutral"},
     "smile": {"eyes": "smile", "brows": "smile", "mouth": "smile"},
-    "sad": {"eyes": "eyes_down", "brows": "sad", "mouth": "sad"},
+    "sad": {"eyes": "gaze_down", "brows": "sad", "mouth": "sad"},
     "worried": {"eyes": "worried", "brows": "worried", "mouth": "worried"},
     "shocked": {"eyes": "shocked", "brows": "shocked", "mouth": "shocked"},
-    "look_down": {"eyes": "eyes_down", "brows": "neutral", "mouth": "neutral"},
+    "look_down": {"eyes": "gaze_down", "brows": "neutral", "mouth": "neutral"},
 }
 BLINK = ["eyes_half", "eyes_closed", "eyes_half"]   # eye images of a blink (between open frames)
 PUPIL_L = 30            # pupils / iris: darkest blobs in the face
@@ -43,6 +43,8 @@ BROW_UP = 0.62          # brow centre above the pupil (x eye spacing)
 FEATHER = 3.5           # px of soft edge on every layer
 SYNTH_BLINK = True      # blink frames drawn from the neutral eyes instead of the soft edits
 LASH_PX = 4.0           # lash line thickness at the lid
+GAZE_SHIFT = 0.28       # look down: iris slides down by this share of the eye opening ...
+GAZE_LID = 0.30         # ... and the upper lid comes down this far
 COVER_RING = 3          # px around the opening also repainted (its outline / lash)
 COLOR_SIGMA = 14        # smoothness (px) of the skin-tone correction field
 SOFT_RATIO = 0.6        # image sharper than this share of the neutral counts as fine ...
@@ -136,10 +138,12 @@ def eye_opening(lab, pupil, gap):
     return ndi.binary_fill_holes(ndi.binary_closing(keep, iterations=2)) & zone
 
 
-def synth_blinks(neutral, pupils, gap):
+def synth_blinks(neutral, pupils, gap, frames=(("eyes_half", 0.5, 0.0), ("eyes_closed", 1.0, 0.0))):
     """Blink frames drawn from the neutral eyes (the generated blink images were soft and
     off-tone): skin painted over the opening (inpainting from the surrounding skin), and
-    the upper lash line redrawn at the lid: halfway down (half), at the bottom (closed)."""
+    the upper lash line redrawn at the lid: halfway down (half), at the bottom (closed).
+    frames: (name, lid depth 0..1, iris shift as share of the opening height) — a downward
+    gaze slides the iris down inside the eye and lowers the lid a little."""
     import cv2
     rgb = neutral[..., :3].copy()
     lab = rgb2lab(rgb / 255.0)
@@ -151,10 +155,22 @@ def synth_blinks(neutral, pupils, gap):
         lash_px.append(rgb[m & (lab[..., 0] < 30)])
     lash = np.median(np.concatenate(lash_px), 0)
     out = {}
-    for name, depth in (("eyes_half", 0.5), ("eyes_closed", 1.0)):
+    for name, depth, shift in frames:
         img = rgb.astype(np.float32).copy()
         lines = []
         for m in masks:
+            if shift > 0:                                       # iris slides down in the eye
+                ys_m = np.where(m.any(1))[0]
+                dy = int(round(shift * (ys_m.max() - ys_m.min())))
+                white = np.median(rgb[m & (lab[..., 0] > 88)], 0)
+                src = np.zeros_like(m)
+                src[dy:] = m[:-dy]
+                moved = np.zeros_like(img)
+                moved[dy:] = rgb[:-dy]
+                inner = ndi.binary_erosion(m, iterations=1)
+                ok = inner & src
+                img[inner] = white
+                img[ok] = moved[ok]
             cols = np.where(m.any(0))[0]
             top = np.array([np.where(m[:, c])[0].min() for c in cols], float)
             bot = np.array([np.where(m[:, c])[0].max() for c in cols], float)
@@ -213,9 +229,12 @@ def run(character, view="front"):
     face_zone = ndi.binary_dilation(np.any(list(zones.values()), 0), iterations=12) & head
     if SYNTH_BLINK:                                                  # drawn from the neutral eyes
         imgs.update(synth_blinks(neutral, info["pupils"], info["eye_spacing"]))
+        # downward gaze in her own eye style (the generated eyes_down looked sleepy / sly)
+        imgs.update(synth_blinks(neutral, info["pupils"], info["eye_spacing"],
+                                 frames=(("gaze_down", GAZE_LID, GAZE_SHIFT),)))
     fixes = {}
     for k in list(imgs):
-        if k == "neutral" or (SYNTH_BLINK and k in ("eyes_half", "eyes_closed")):
+        if k == "neutral" or (SYNTH_BLINK and k in ("eyes_half", "eyes_closed", "gaze_down")):
             continue
         imgs[k], fixes[k] = match_to_neutral(imgs[k], neutral, face_zone)
 

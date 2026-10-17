@@ -11,7 +11,7 @@
       "mouth": "smile"
     },
     "sad": {
-      "eyes": "eyes_down",
+      "eyes": "gaze_down",
       "brows": "sad",
       "mouth": "sad"
     },
@@ -26,7 +26,7 @@
       "mouth": "shocked"
     },
     "look_down": {
-      "eyes": "eyes_down",
+      "eyes": "gaze_down",
       "brows": "neutral",
       "mouth": "neutral"
     }

@@ -45,7 +45,7 @@ def load_rig(char_dir, view="front", sub=""):
     return meta, imgs
 
 
-def world_transforms(meta, angles, root=None):
+def world_transforms(meta, angles, root=None, offsets=None):
     """root: optional 3x3 applied to every root part (moves the whole body in the world)."""
     parts = meta["parts"]
     cache = {}
@@ -57,6 +57,9 @@ def world_transforms(meta, angles, root=None):
         p = parts[name]
         R = np.eye(3)
         R[:2] = cv2.getRotationMatrix2D(tuple(p["pivot"]), angles.get(name, 0.0), 1.0)
+        if offsets and name in offsets:                        # translate (children follow)
+            dx, dy = offsets[name]
+            R = np.array([[1, 0, dx], [0, 1, dy], [0, 0, 1]], float) @ R
         cache[name] = (T(p["parent"]) if p["parent"] else base) @ R
         return cache[name]
 
@@ -169,13 +172,13 @@ def _draw_bent(out, meta, imgs, a, b, band, Ta, Tb, cam, cam_scale, W, H):
 
 
 def render(meta, imgs, angles, bg=(255, 255, 255), root=None, camera=None, size=None, canvas=None,
-           bends=()):
+           bends=(), offsets=None):
     """warp each part only inside its own bounding box (≈30x faster than full-canvas warps).
     root: body placement in the world; camera: world → screen 3x3 (scale + pan);
     size: (W, H) of the output; canvas: background image to draw onto;
     bends: [(parent, child, band_px)] drawn as one softly bending piece."""
     W, H = size or meta["canvas"]
-    Ts = world_transforms(meta, angles, root)
+    Ts = world_transforms(meta, angles, root, offsets)
     cam = np.eye(3) if camera is None else camera
     cam_scale = float(np.sqrt(abs(np.linalg.det(cam[:2, :2]))))
     if canvas is not None:
