@@ -2,6 +2,9 @@
 
   * motion = world rotation deltas per part (from video_import), resampled to 24 fps on twos
   * hand swap: the open-hand image replaces the relaxed hand while the motion says 'open'
+  * face: eyes / brows / mouth layers (Face Cutter) ride on the head; expression from a
+    simple timeline (smile while the hand is up, else neutral) + automatic blinks
+    (half → closed → half, one pose per 'two', every ~3 s with a little randomness)
   * life: ponytail + front strand on damped springs driven by the head; a slight head tilt
     toward the waving hand while it is up (people tilt into a wave)
   * camera: full body, static, same backdrop as the walk
@@ -21,6 +24,8 @@ from src.animation.animator import FPS, ON_TWOS, OUT_H, OUT_W, SCALE, GROUND_SCR
 from src.animation.retarget import to_local
 from src.utils.io import save_text
 
+FACE_LAYERS = ("eyes", "brows", "mouth")
+BLINK_EVERY = (2.6, 3.8)    # s between blinks (random in this range, fixed seed)
 HEAD_TILT = -3.0            # deg toward her left (viewer's right) while the hand is up
 SPRINGS = {"ponytail": dict(k=110.0, d=8.0, gain=0.9), "strand_r": dict(k=220.0, d=12.0, gain=0.6)}
 
@@ -37,6 +42,23 @@ class FrontClip:
             if p.exists():
                 self.swaps[part] = np.asarray(Image.open(p).convert("RGBA"))
         self.ground_y = max(p["bbox"][3] for n, p in self.meta["parts"].items() if n.startswith("foot"))
+        self.recipes = json.loads((config.ROOT / "expressions" / "recipes.json").read_text())
+        face_dir = self.char / "faces" / "front"
+        self.face = {}
+        if face_dir.exists():
+            for layer in FACE_LAYERS:
+                for p in (face_dir / layer).glob("*.png"):
+                    self.face[(layer, p.stem)] = np.asarray(Image.open(p).convert("RGBA"))
+            # face layers ride on the head, drawn right above it (below the hair)
+            order = list(self.meta["layer_order"])
+            i = order.index("head") + 1
+            head = self.meta["parts"]["head"]
+            for layer in FACE_LAYERS:
+                name = f"face_{layer}"
+                order.insert(i, name); i += 1
+                self.meta["parts"][name] = {"id": 0, "parent": "head", "pivot_joint": head["pivot_joint"],
+                                            "pivot": head["pivot"]}
+            self.meta["layer_order"] = order
 
     def sample(self, t):
         f = min(t * self.m["fps"], self.m["frames"] - 1)
@@ -45,8 +67,24 @@ class FrontClip:
         hand = {k: v[int(round(f))] for k, v in self.m.get("hand", {}).items()}
         return world, hand
 
+    def blinks(self, n):
+        """frame index → eye image of a blink (or None)."""
+        rng = np.random.default_rng(7)
+        out = [None] * n
+        t = rng.uniform(0.8, 1.6)
+        seq = self.recipes.get("blink", ["eyes_half", "eyes_closed", "eyes_half"])
+        while t * FPS < n:
+            k0 = int(t * FPS) // ON_TWOS * ON_TWOS
+            for j, e in enumerate(seq):
+                for d in range(ON_TWOS):
+                    if k0 + j * ON_TWOS + d < n:
+                        out[k0 + j * ON_TWOS + d] = e
+            t += rng.uniform(*BLINK_EVERY)
+        return out
+
     def frames(self):
         n = int(np.ceil(self.m["frames"] / self.m["fps"] * FPS))
+        blink = self.blinks(n)
         dt = ON_TWOS / FPS
         spring = {k: [0.0, 0.0] for k in SPRINGS if k in self.meta["parts"]}
         tilt, prev_head = 0.0, [0.0, 0.0]
@@ -68,9 +106,10 @@ class FrontClip:
                     st[1] += a * h; st[0] += st[1] * h
                 world[n_] = tilt + st[0]
             local = to_local(self.meta, world)
+            expr = "smile" if up else "neutral"
             for _ in range(ON_TWOS):
                 if len(out) < n:
-                    out.append((local, hand))
+                    out.append((local, hand, expr, blink[len(out)]))
         return out
 
     def render(self, out_path):
@@ -82,16 +121,24 @@ class FrontClip:
                                     macro_block_size=8, ffmpeg_log_level="error")
         frames = self.frames()
         opened = 0
-        for local, hand in frames:
+        blinks = 0
+        for local, hand, expr, blink in frames:
             imgs = dict(self.imgs)
             for part, pose in hand.items():
                 if pose == "open" and part in self.swaps:
                     imgs[part] = self.swaps[part]
                     opened += 1
+            recipe = self.recipes["recipes"].get(expr, self.recipes["recipes"]["neutral"])
+            for layer in FACE_LAYERS:
+                src = blink if (layer == "eyes" and blink) else recipe[layer]
+                if (layer, src) in self.face:
+                    imgs[f"face_{layer}"] = self.face[(layer, src)]
+            blinks += blink == "eyes_closed"
             writer.append_data(rigid_pose.render(self.meta, imgs, local, camera=cam,
                                                  size=(OUT_W, OUT_H), canvas=bg))
         writer.close()
-        return {"frames": len(frames), "fps": FPS, "on_twos": True, "open_hand_frames": opened}
+        return {"frames": len(frames), "fps": FPS, "on_twos": True, "open_hand_frames": opened,
+                "blink_closed_frames": int(blinks)}
 
 
 def run(character="protagonist", action="wave"):

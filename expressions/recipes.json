@@ -1,0 +1,44 @@
+{
+  "recipes": {
+    "neutral": {
+      "eyes": "neutral",
+      "brows": "neutral",
+      "mouth": "neutral"
+    },
+    "smile": {
+      "eyes": "smile",
+      "brows": "smile",
+      "mouth": "smile"
+    },
+    "sad": {
+      "eyes": "eyes_down",
+      "brows": "sad",
+      "mouth": "sad"
+    },
+    "worried": {
+      "eyes": "worried",
+      "brows": "worried",
+      "mouth": "worried"
+    },
+    "shocked": {
+      "eyes": "shocked",
+      "brows": "shocked",
+      "mouth": "shocked"
+    },
+    "look_down": {
+      "eyes": "eyes_down",
+      "brows": "neutral",
+      "mouth": "neutral"
+    }
+  },
+  "blink": [
+    "eyes_half",
+    "eyes_closed",
+    "eyes_half"
+  ],
+  "layers": [
+    "eyes",
+    "brows",
+    "mouth"
+  ]
+}
