@@ -60,7 +60,8 @@ def react(seconds=3.0, at=0.5):
         "head": 2.0 * pose + tremble * 0.5,
         "upper_arm_l": 22.0 * pose + tremble, "upper_arm_r": -22.0 * pose - tremble,
         "forearm_l": -150.0 * pose, "forearm_r": 150.0 * pose,      # hands up toward the chest
-        "hand_l": 15.0 * pose, "hand_r": -15.0 * pose,
+        # hands follow their forearms (world angles), plus a slight backward bend: fingers up
+        "hand_l": -140.0 * pose, "hand_r": 140.0 * pose,
     }, False, {"react_at": at, "default_expression": "shocked"}
 
 
