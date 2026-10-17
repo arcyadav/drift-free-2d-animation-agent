@@ -58,8 +58,9 @@ STYLE = {
                            # heel strike (a controlled fall onto the front foot, no drop)
     "heel_min": 0.08,      # heel lift at toe-off (leg lengths)
     "ankle_h": 0.20,       # ankle above the ground (her sneaker is tall)
-    "arm_swing": 7.0,      # deg each way: relaxed arms (13 swung like marching)
-    "elbow": (4.0, 10.0),  # elbow bend (back, forward)
+    "arm_swing": 10.0,     # deg each way: a little livelier than the reference (7), not
+                           # marching (13 looked like it)
+    "elbow": (4.0, 15.0),  # elbow bend (back, forward): the forearm lifts a bit on the forward swing
     "lean": 3.0,           # deg: upper body tips forward from the hips (falling into the step)
     "chest_counter": 0.4,  # chest tips opposite to the hips (share of hip_tilt)
     "head_nod": 0.0,       # deg: head dip after 'down' — any visible nod reads as a chicken
