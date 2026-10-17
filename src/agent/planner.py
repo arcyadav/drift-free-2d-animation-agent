@@ -20,9 +20,9 @@ from src import config
 from src.agent import llm
 
 # which view each action is drawn in (library actions only)
-ACTION_VIEW = {"walk": "side_left", "walk_sad": "side_left", "walk_happy": "side_left",
+ACTION_VIEW = {"react": "front", "walk": "side_left", "walk_sad": "side_left", "walk_happy": "side_left",
                "walk_worried": "side_left", "wave": "front", "idle": "front", "look_down": "front"}
-DEFAULT_SECONDS = {"walk_sad": 5.0, "walk_happy": 5.0, "walk_worried": 5.0, "walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
+DEFAULT_SECONDS = {"react": 3.0, "walk_sad": 5.0, "walk_happy": 5.0, "walk_worried": 5.0, "walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
 # expressions each view can show (front: full face layers; side: none cut yet)
 VIEW_EXPRESSIONS = {"front": None, "side_left": ["neutral"]}
 
@@ -31,6 +31,8 @@ ACTION_WORDS = {
              "leave", "leaves", "cross", "crosses", "move along", "pace"],
     "wave": ["wave", "waves", "waving", "say hi", "says hi", "hello", "bye", "goodbye", "greet",
              "greets", "hi to"],
+    "react": ["oh no", "fell", "falls", "fall in", "dropped", "drops", "lost her", "loses her", "shock",
+              "gasp", "startl", "jump scare", "scared", "frighten", "can't believe", "cannot believe", "spill"],
     "look_down": ["look down", "looks down", "looking down", "stares at the floor", "at her feet",
                   "lowers her eyes", "glance down"],
     "idle": ["stand", "stands", "standing", "idle", "wait", "waits", "waiting", "stay", "breathe"],
@@ -38,7 +40,7 @@ ACTION_WORDS = {
 EXPRESSION_WORDS = {
     "smile": ["happ", "smil", "cheer", "joy", "glad", "excit", "friendly", "warm", "hop"],
     "sad": ["sad", "unhapp", "down cast", "gloom", "upset", "cry", "tear", "sorrow", "heartbroken",
-            "griev", "grief", "mourn", "depress", "lonely"],
+            "griev", "grief", "mourn", "depress", "lonely", "terrible", "bad news", "awful", "failed"],
     "worried": ["worr", "anxious", "nervous", "uneasy", "tense", "concern"],
     "shocked": ["shock", "surpris", "startl", "gasp", "stun", "amazed"],
     "thoughtful": ["think", "thought", "wonder", "ponder", "hmm", "curious", "interest", "consider",
@@ -47,6 +49,8 @@ EXPRESSION_WORDS = {
 }
 SPEED_WORDS = [(0.6, ["very slow", "really slow", "sluggish"]), (0.75, ["slow", "slowly", "gently", "lazily", "tired"]),
                (1.3, ["quick", "fast", "hurr", "rush", "brisk"]), (1.0, ["normal"])]
+MOOD_ACTION = {"sad": "look_down", "thoughtful": "look_down", "worried": "look_down",
+               "shocked": "react", "smile": "wave"}
 SHOT_WORDS = {"close": ["close-up", "close up", "closeup", "zoom", "her face", "on her face", "face only"],
               "medium": ["medium", "waist up", "upper body", "closer", "half body", "shoulders"],
               "full": ["full body", "full shot", "wide", "whole body"]}
@@ -98,7 +102,7 @@ FEW_SHOT = [
     ("she says goodbye to her mom", {"action": "wave", "expression": "smile"}),
     ("she just heard terrible news", {"action": "look_down", "expression": "sad"}),
     ("she heads to college", {"action": "walk", "expression": "neutral"}),
-    ("she realises she lost her phone", {"action": "idle", "expression": "shocked"}),
+    ("she realises she lost her phone", {"action": "react", "expression": "shocked"}),
     ("she wonders about the strange letter", {"action": "look_down", "expression": "thoughtful"}),
 ]
 
@@ -138,7 +142,7 @@ def validate(plan, lib, notes):
         plan["action"] = mood[plan["expression"]]
     view = ACTION_VIEW[plan["action"]]
     plan["view"] = view
-    expr = plan.get("expression") or ("smile" if plan["action"] == "wave" else "neutral")
+    expr = plan.get("expression") or {"wave": "smile", "react": "shocked"}.get(plan["action"], "neutral")
     if expr not in lib["expressions"]:
         notes.append(f"expression {expr!r} unknown -> neutral")
         expr = "neutral"
@@ -161,6 +165,10 @@ def plan_request(text, use_llm=True):
     lib = library()
     plan = parse_rules(text)
     notes, source = [], {k: "rules" for k in plan}
+    # a mood with no action: the action that shows that mood best (deterministic, no LLM)
+    if "action" not in plan and plan.get("expression") in MOOD_ACTION:
+        plan["action"] = MOOD_ACTION[plan["expression"]]
+        source["action"] = "rules"
     missing = [k for k in ("action", "expression") if k not in plan]
     if missing and use_llm and llm.available():
         got = ask_llm(text, missing, lib)

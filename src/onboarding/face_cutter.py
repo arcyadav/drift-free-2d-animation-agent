@@ -42,6 +42,8 @@ BLINK = ["eyes_half", "eyes_closed", "eyes_half"]   # eye images of a blink (bet
 PUPIL_L = 30            # pupils / iris: darkest blobs in the face
 EYE_RX, EYE_RY = 1.25, 1.05      # eye zone radii as multiples of the eye spacing / 2.5 ...
 BROW_UP = 0.62          # brow centre above the pupil (x eye spacing)
+BROW_RX, BROW_RY = 1.0, 0.75   # brow zone radii (x eye radii) ...
+BROW_DOWN = 0.06        # ... centre shifted a little down (x eye spacing)
 FEATHER = 3.5           # px of soft edge on every layer
 SYNTH_BLINK = True      # blink frames drawn from the neutral eyes instead of the soft edits
 LASH_PX = 4.0           # lash line thickness at the lid
@@ -91,7 +93,10 @@ def find_zones(neutral, head, expressions):
     m_rx, m_ry = 0.62 * gap, 0.5 * (np.percentile(my, 97) - np.percentile(my, 3)) + 4
     zones = {
         "eyes": np.any([ellipse(head.shape, c, rx, ry) for c in eye_c], 0),
-        "brows": np.any([ellipse(head.shape, c, 0.85 * rx, 0.36 * ry) for c in brow_c], 0),
+        # tall enough for the expressions' brows (sad / worried raise the inner ends and move
+        # them; a zone fitted to the neutral brow cut them off → flat brows)
+        "brows": np.any([ellipse(head.shape, c + np.array([0, BROW_DOWN * gap]), BROW_RX * rx, BROW_RY * ry)
+                         for c in brow_c], 0),
         "mouth": ellipse(head.shape, mouth_c, m_rx, m_ry),
     }
     zones["eyes"] &= ~zones["brows"]                                  # brows win over the eye zone

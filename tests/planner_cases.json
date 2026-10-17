@@ -147,7 +147,8 @@
  },
  {
   "q": "she realises she lost her phone",
-  "expression": "shocked"
+  "expression": "shocked",
+  "action": "react"
  },
  {
   "q": "she gasps in surprise",
@@ -207,5 +208,10 @@
   "action": "look_down",
   "expression": "sad",
   "shot": "medium"
+ },
+ {
+  "q": "her phone fell in the drain, she is shocked!",
+  "action": "react",
+  "expression": "shocked"
  }
 ]

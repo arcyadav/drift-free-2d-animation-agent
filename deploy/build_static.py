@@ -20,6 +20,8 @@ REQUESTS = [
     "close-up of her face, she smiles and waves",
     "she says goodbye to her mom",
     "she just heard terrible news",
+    "her phone fell in the drain, she is shocked!",
+    "close-up, she is worried",
     "she looks down, wondering hmm",
     "medium shot, she looks down sadly",
     "she stands and waits",
