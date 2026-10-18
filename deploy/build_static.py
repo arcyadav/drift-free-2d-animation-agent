@@ -29,7 +29,7 @@ REQUESTS = [
     "she walks slowly to the right",
     "she is walking lost in thoughts and grieved",
     "walking cheerfully, hoping",
-    "she runs to catch the bus",
+    "she hurries to catch the bus",
 ]
 
 CSS = """
