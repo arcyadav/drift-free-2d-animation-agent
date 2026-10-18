@@ -20,13 +20,14 @@ from src import config
 from src.agent import llm
 
 # which view each action is drawn in (library actions only)
-ACTION_VIEW = {"react": "front", "walk": "side_left", "walk_sad": "side_left", "walk_happy": "side_left",
+ACTION_VIEW = {"run": "side_left", "react": "front", "walk": "side_left", "walk_sad": "side_left", "walk_happy": "side_left",
                "walk_worried": "side_left", "wave": "front", "idle": "front", "look_down": "front"}
-DEFAULT_SECONDS = {"react": 3.0, "walk_sad": 5.0, "walk_happy": 5.0, "walk_worried": 5.0, "walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
+DEFAULT_SECONDS = {"run": 4.0, "react": 3.0, "walk_sad": 5.0, "walk_happy": 5.0, "walk_worried": 5.0, "walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
 # expressions each view can show (front: full face layers; side: none cut yet)
 VIEW_EXPRESSIONS = {"front": None, "side_left": ["neutral"]}
 
 ACTION_WORDS = {
+    "run": ["run", "runs", "running", "ran", "sprint", "jog", "dash", "races", "racing", "chases"],
     "walk": ["walk", "walks", "walking", "stroll", "strolls", "go to", "goes", "heads", "head to",
              "leave", "leaves", "cross", "crosses", "move along", "pace"],
     "wave": ["wave", "waves", "waving", "say hi", "says hi", "hello", "bye", "goodbye", "greet",

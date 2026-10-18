@@ -213,5 +213,13 @@
   "q": "her phone fell in the drain, she is shocked!",
   "action": "react",
   "expression": "shocked"
+ },
+ {
+  "q": "she runs to catch the bus",
+  "action": "run"
+ },
+ {
+  "q": "she is running late, sprinting to class",
+  "action": "run"
  }
 ]
