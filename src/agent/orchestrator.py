@@ -29,7 +29,7 @@ def make_clip(text, character="protagonist", use_llm=True, out_dir=None):
     t1 = time.time()
     if plan["view"] == "side_left":
         w = Walker(character, plan["action"], speed=plan["speed"], mirror=plan["direction"] == "right",
-                   shot=plan["shot"])
+                   shot=plan["shot"], expression=plan.get("side_expression"))
         rep = w.render(plan["seconds"] or 5.0, str(out))
     else:
         rep = front_clip.FrontClip(character, plan["action"], plan["expression"], plan["speed"],

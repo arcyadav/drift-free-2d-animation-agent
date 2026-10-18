@@ -29,7 +29,7 @@ REQUESTS = [
     "she walks slowly to the right",
     "she is walking lost in thoughts and grieved",
     "walking cheerfully, hoping",
-    "she hurries to catch the bus",
+    "medium shot, she walks worried",
 ]
 
 CSS = """
@@ -106,7 +106,7 @@ could not decide; every plan is validated and repaired (e.g. a sad face in side 
 </table>
 <h2>Honest limits</h2>
 <ul><li>Cut-out (puppet) look: rigid sleeves, no cloth simulation — AI video has richer frames, but redraws the character.</li>
-<li>Side view has no face expressions yet (moods shown through body language).</li>
+<li>Side view: smile / sad / worried / shocked faces from profile images; other moods fall back to neutral.</li>
 <li>Onboarding rules assume tee / jeans / sneakers; new outfit types need new garment rules.</li></ul>
 </main></body></html>"""
     (SITE / "index.html").write_text(page, encoding="utf-8")

@@ -18,6 +18,7 @@ import json
 import cv2
 import imageio.v2 as imageio
 import numpy as np
+from PIL import Image
 
 from src import config
 from src.animation import rigid_pose
@@ -36,6 +37,8 @@ GROUND = (222, 214, 200)
 # faster and less than the heavy ponytail.
 SPRINGS = {"ponytail": dict(k=120.0, d=9.0, gain=0.06, trail=4.0),
            "strand_l": dict(k=260.0, d=14.0, gain=0.035, trail=2.5)}
+FACE_LAYERS = ("eyes", "brows", "mouth")
+MOOD_FACE = {"walk_sad": "sad", "walk_happy": "smile", "walk_worried": "worried"}
 BENDS = [("thigh_l", "shin_l", 110), ("thigh_r", "shin_r", 110)]   # soft knees (band px)
 REACH_MARGIN = 0.998         # a locked leg may stretch to this share of its length
 HEEL_LIFT_PX = 8             # planted ankle rising more than this = heel-off → release the lock
@@ -63,7 +66,7 @@ def two_bone_ik(hip, target, l1, l2, forward_x):
 
 class Walker:
     def __init__(self, character, action="walk", view="side_left", strands=False, speed=1.0,
-                 mirror=False, shot="full"):
+                 mirror=False, shot="full", expression=None):
         self.speed, self.mirror = speed, mirror          # mirror: walk to the right (view graph)
         self.shot = shot
         self.char_dir = config.CHARACTERS / character
@@ -74,6 +77,45 @@ class Walker:
         self.forward_x = -1.0
         self.springs = {n: c for n, c in SPRINGS.items()
                         if n in self.meta["parts"] and (strands or not n.startswith("strand"))}
+        self.face = self._load_face(view, expression or MOOD_FACE.get(action, "neutral"))
+
+    def _load_face(self, view, expression):
+        """profile face layers (eyes / brows / mouth) ride on the head; blinks every ~3 s."""
+        d = self.char_dir / "faces" / view
+        rp = config.ROOT / "expressions" / "recipes.json"
+        if not d.exists() or not rp.exists():
+            return None
+        rec = json.loads(rp.read_text())
+        recipes = rec.get(f"recipes_{view}", {})
+        recipe = recipes.get(expression) or recipes.get("neutral")
+        if not recipe:
+            return None
+        layers = {L: np.asarray(Image.open(d / L / f"{recipe[L]}.png").convert("RGBA")) for L in FACE_LAYERS}
+        blink_src = rec.get(f"blink_{view}", [])
+        blink = np.asarray(Image.open(d / "eyes" / f"{blink_src[0]}.png").convert("RGBA"))             if blink_src and (d / "eyes" / f"{blink_src[0]}.png").exists() else None
+        order = list(self.meta["layer_order"])
+        i = order.index("head") + 1
+        head = self.meta["parts"]["head"]
+        for L in FACE_LAYERS:
+            order.insert(i, f"face_{L}"); i += 1
+            self.meta["parts"][f"face_{L}"] = {"id": 0, "parent": "head", "pivot_joint": head["pivot_joint"],
+                                               "pivot": head["pivot"]}
+            self.imgs[f"face_{L}"] = layers[L]
+        self.meta["layer_order"] = order
+        return {"expression": expression, "eyes": layers["eyes"], "blink": blink, "n_blink": len(blink_src)}
+
+    def blink_frames(self, n):
+        """frame indices showing closed eyes (deterministic, ~every 3 s, held on twos)."""
+        if not self.face or self.face["blink"] is None:
+            return set()
+        rng = np.random.default_rng(11)
+        out, t = set(), rng.uniform(0.7, 1.4)
+        hold = max(ON_TWOS, self.face["n_blink"] * ON_TWOS // 2 * 2)
+        while t * FPS < n:
+            k0 = int(t * FPS) // ON_TWOS * ON_TWOS
+            out.update(range(k0, min(k0 + hold, n)))
+            t += rng.uniform(2.6, 3.8)
+        return out
 
     def chain_world(self, world, side, offset):
         """FK of one leg → hip, knee, ankle world positions (rig px + root offset)."""
@@ -162,9 +204,12 @@ class Walker:
     def render(self, seconds, out_path):
         frames, slide = self.poses(seconds)
         start = np.array(self.P["pelvis"])
+        closed = self.blink_frames(len(frames))
         writer = imageio.get_writer(out_path, fps=FPS, codec="libx264", quality=8,
                                     macro_block_size=8, ffmpeg_log_level="error")
-        for local, off in frames:
+        for k, (local, off) in enumerate(frames):
+            if self.face:
+                self.imgs["face_eyes"] = self.face["blink"] if k in closed else self.face["eyes"]
             body_x = start[0] + off[0]
             # camera keeps her centred; closer shots follow her bob a little (half of it)
             cam, _, cam_x = shot_camera(self.shot, body_x, self.ground_y, 0.5 * off[1])
@@ -175,6 +220,7 @@ class Walker:
             writer.append_data(img[:, ::-1] if self.mirror else img)
         writer.close()
         rep = {"frames": len(frames), "fps": FPS, "on_twos": True, "seconds": seconds,
+               "expression": self.face["expression"] if self.face else None, "blink_frames": len(closed),
                "foot_slide_px": {k: {"mean": round(float(np.mean(v)), 2) if v else 0.0,
                                      "max": round(float(np.max(v)), 2) if v else 0.0}
                                  for k, v in slide.items()}}

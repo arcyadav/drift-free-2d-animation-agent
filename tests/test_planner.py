@@ -15,7 +15,12 @@ def test_planner():
         assert p["action"] in lib["actions"] and p["expression"] in lib["expressions"]
         assert p["view"] == ACTION_VIEW[p["action"]] and 0.5 <= p["speed"] <= 1.5
     p = plan_request("she walks sadly", use_llm=False)
-    assert p["expression"] == "neutral" and p["notes"], "side view cannot show sad: repaired + logged"
+    assert p["action"] == "walk_sad" and p["expression"] == "sad" and p.get("side_expression") == "sad",         "sad walk: body language + the profile sad face"
+    import json
+    from src import config
+    side = json.loads((config.ROOT / "expressions/recipes.json").read_text())["recipes_side_left"]
+    p = plan_request("she walks, thinking hmm", use_llm=False)
+    assert side[p["side_expression"]]["eyes"] == "neutral", "no profile image for thoughtful: falls back to neutral"
 
     rules = score(use_llm=False)
     assert rules["requests_fully_right"] >= 0.8, rules["errors"]

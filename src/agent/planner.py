@@ -24,7 +24,7 @@ ACTION_VIEW = {"react": "front", "walk": "side_left", "walk_sad": "side_left", "
                "walk_worried": "side_left", "wave": "front", "idle": "front", "look_down": "front"}
 DEFAULT_SECONDS = {"react": 3.0, "walk_sad": 5.0, "walk_happy": 5.0, "walk_worried": 5.0, "walk": 5.0, "wave": None, "idle": 4.0, "look_down": 4.0}
 # expressions each view can show (front: full face layers; side: none cut yet)
-VIEW_EXPRESSIONS = {"front": None, "side_left": ["neutral"]}
+VIEW_EXPRESSIONS = {"front": None, "side_left": None}       # side faces now cut (Face Cutter)
 
 ACTION_WORDS = {
     "walk": ["walk", "walks", "walking", "stroll", "strolls", "go to", "goes", "heads", "head to",
@@ -151,6 +151,12 @@ def validate(plan, lib, notes):
         notes.append(f"expression {expr!r} not available in {view} (face layers: {allowed}) -> neutral")
         expr = "neutral"
     plan["expression"] = expr
+    if view == "side_left":
+        side = json.loads((config.ROOT / "expressions" / "recipes.json").read_text()).get("recipes_side_left", {})
+        if expr in side:
+            plan["side_expression"] = expr
+        elif side:
+            notes.append(f"no side face for {expr!r} -> neutral face (mood shown by body language)")
     plan["speed"] = float(min(max(plan.get("speed", 1.0), 0.5), 1.5))
     plan["direction"] = plan.get("direction", "left")
     if plan["direction"] not in ("left", "right"):

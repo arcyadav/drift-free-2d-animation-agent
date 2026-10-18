@@ -39,6 +39,18 @@ RECIPES = {
     "thoughtful": {"eyes": "eyes_down", "brows": "neutral", "mouth": "neutral"},
 }
 BLINK = ["eyes_half", "eyes_closed", "eyes_half"]   # eye images of a blink (between open frames)
+# per view: names of the raw images (the image tool's wording) → library names, the blink, and
+# whether blink frames are drawn from the neutral eyes (front) or taken from the raw image (side)
+VIEWS = {
+    "front": {"alias": {}, "blink": BLINK, "synth_blink": True},
+    "side_left": {"alias": {"happy": "smile", "tensed": "worried"}, "blink": ["eyes_closed", "eyes_closed"],
+                  "synth_blink": False},
+}
+PROFILE_REACH = 10      # px the profile face layers may reach past the skin (eye white, open mouth)
+OUTSIDE_MAX_L = 77      # outside the neutral outline drop pixels lighter than skin (light halo)
+BG_DE = 24              # image pixels this close to its background colour = background ...
+BG_L = 80               # ... or this light, outside the neutral outline
+PROFILE_GAP = 70.0      # side view: one eye → use the front eye spacing as the face scale (same head size)
 PUPIL_L = 30            # pupils / iris: darkest blobs in the face
 EYE_RX, EYE_RY = 1.25, 1.05      # eye zone radii as multiples of the eye spacing / 2.5 ...
 BROW_UP = 0.62          # brow centre above the pupil (x eye spacing)
@@ -66,14 +78,28 @@ def soft(mask):
     return np.clip(d_in / FEATHER, 0, 1)
 
 
-def find_zones(neutral, head, expressions):
+def find_zones(neutral, head, expressions, profile=False):
     lab = rgb2lab(neutral[..., :3] / 255.0)
     dark = head & (lab[..., 0] < PUPIL_L)
     cl, n = ndi.label(dark)
     sizes = ndi.sum(dark, cl, range(1, n + 1))
-    two = np.argsort(sizes)[-2:] + 1
-    eyes = sorted([np.array(ndi.center_of_mass(cl == i))[::-1] for i in two], key=lambda c: c[0])
-    gap = np.linalg.norm(eyes[1] - eyes[0])
+    if profile:
+        # one eye: the most compact dark blob (the brow is a long thin stroke)
+        best, eyes = -1, None
+        for i in range(1, n + 1):
+            if sizes[i - 1] < 40:
+                continue
+            ys, xs = np.where(cl == i)
+            fill = sizes[i - 1] / ((np.ptp(ys) + 1) * (np.ptp(xs) + 1))
+            elong = (np.ptp(xs) + 1) / (np.ptp(ys) + 1)
+            score = fill * sizes[i - 1] / max(elong, 1 / elong)
+            if score > best:
+                best, eyes = score, [np.array([xs.mean(), ys.mean()])]
+        gap = PROFILE_GAP
+    else:
+        two = np.argsort(sizes)[-2:] + 1
+        eyes = sorted([np.array(ndi.center_of_mass(cl == i))[::-1] for i in two], key=lambda c: c[0])
+        gap = np.linalg.norm(eyes[1] - eyes[0])
     rx, ry = EYE_RX * gap / 2.5, EYE_RY * gap / 2.5
     eye_c = [e + np.array([0, -0.08 * gap]) for e in eyes]          # lids sit above the pupil
     brow_c = [e + np.array([0, -BROW_UP * gap]) for e in eyes]
@@ -135,17 +161,20 @@ def match_to_neutral(img, neutral, zone):
     return out.astype(np.uint8), fix
 
 
-def eye_opening(lab, pupil, gap):
-    """the visible eye (white + iris + upper lash) around a pupil, from the neutral face."""
+def eye_opening(lab, pupil, gap, fg=None):
+    """the visible eye (white + iris + upper lash) around a pupil, inside the drawing only
+    (in profile the eye touches the face outline: never grow into the background)."""
     h, w = lab.shape[:2]
     zone = ellipse((h, w), pupil + np.array([0, -0.03 * gap]), 0.36 * gap, 0.26 * gap)
+    if fg is not None:
+        zone &= fg
     feat = zone & ((lab[..., 0] > 84) | (lab[..., 0] < 40))           # white or dark (iris, lash)
     cl, _ = ndi.label(feat)
     keep = cl == cl[int(pupil[1]), int(pupil[0])]
     return ndi.binary_fill_holes(ndi.binary_closing(keep, iterations=2)) & zone
 
 
-def aligned_eyes(im, neutral, open_n, info, brow_block, head, align=True):
+def aligned_eyes(im, neutral, open_n, info, brow_block, reach, align=True):
     """Eyes of an expression image, each moved so its eye opening sits where the neutral
     eye sits (image edits drift features by ~10 px), cut tightly around the eye only
     (opening + lashes): no pieces of the expression's brows come along."""
@@ -155,14 +184,14 @@ def aligned_eyes(im, neutral, open_n, info, brow_block, head, align=True):
     shifts = []
     for p, on in zip(info["pupils"], open_n):
         # the expression's own eye: darkest blob near the neutral pupil (iris), its opening
-        win = ellipse(lab.shape[:2], np.array(p), 0.45 * gap, 0.40 * gap) & head
+        win = ellipse(lab.shape[:2], np.array(p), 0.45 * gap, 0.40 * gap) & reach
         dark = win & (lab[..., 0] < PUPIL_L)
         cl, n = ndi.label(dark)
         if n == 0:
             continue
         sizes = ndi.sum(dark, cl, range(1, n + 1))
         c = np.array(ndi.center_of_mass(cl == np.argmax(sizes) + 1))[::-1]
-        oe = eye_opening(lab, c, gap)
+        oe = eye_opening(lab, c, gap, im[..., 3] > 128)
         if oe.sum() < 50:
             oe = ndi.shift(on.astype(float), (c[1] - p[1], c[0] - p[0]), order=0) > 0.5
         ys_n, xs_n = np.where(on)
@@ -177,11 +206,11 @@ def aligned_eyes(im, neutral, open_n, info, brow_block, head, align=True):
         import cv2
         moved = cv2.warpAffine(im, M, (im.shape[1], im.shape[0]), flags=cv2.INTER_LINEAR)
         mask_e = cv2.warpAffine(oe.astype(np.uint8), M, (im.shape[1], im.shape[0]), flags=cv2.INTER_NEAREST) > 0
-        tight = ndi.binary_dilation(on | mask_e, iterations=EYE_RING) & head & ~brow_block
+        tight = ndi.binary_dilation(on | mask_e, iterations=EYE_RING) & reach & ~brow_block
         a = soft(tight)
         sel = a > 0
         out[sel, :3] = moved[sel, :3]
-        out[..., 3] = np.maximum(out[..., 3], (a * 255).astype(np.uint8))
+        out[..., 3] = np.maximum(out[..., 3], (a * moved[..., 3] / 255.0 * 255).astype(np.uint8))
         shifts.append([round(float(dx), 1), round(float(dy), 1)])
     return out, shifts
 
@@ -258,10 +287,22 @@ def synth_blinks(neutral, pupils, gap, frames=(("eyes_half", 0.5, 0.0), ("eyes_c
 
 
 def run(character, view="front"):
+    vcfg = VIEWS[view]
+    synth_blink = SYNTH_BLINK and vcfg["synth_blink"]
     char = config.CHARACTERS / character
     meta = json.loads((char / "parts" / view / "parts.json").read_text())
     labels = np.asarray(Image.open(char / "parts" / view / "labels.png"))
     head = labels == meta["parts"]["head"]["id"]
+    if view != "front":
+        # profile: the eye white and an open mouth sit ON the face outline — let the face layers
+        # reach a little past the skin (never into hair); background there is made transparent
+        hair = np.isin(labels, [meta["parts"][n]["id"] for n in ("head_hair", "ponytail", "strand_l")
+                                if n in meta["parts"]])
+        reach = head | (ndi.binary_dilation(head, iterations=PROFILE_REACH) & ~ndi.binary_dilation(hair, iterations=2))
+        hair_px = hair                                  # eyes may touch the curl, never cover it
+    else:
+        reach = head
+        hair_px = np.zeros_like(head)
     _, t, _, size = clean_image(config.ASSETS_RAW / "turnaround" / f"{view}.png")
     imgs = {}
     for p in sorted((config.ASSETS_RAW / "faces" / view).glob("*.png")):
@@ -269,23 +310,53 @@ def run(character, view="front"):
         raw = Image.open(p).convert("RGBA")
         if raw.size != size:
             raw = raw.resize(size, Image.LANCZOS)
-        imgs[p.stem] = np.asarray(apply_transform(raw, t))
+        imgs[vcfg["alias"].get(p.stem, p.stem)] = np.asarray(apply_transform(raw, t))
     neutral = np.asarray(Image.open(char / "views" / f"{view}.png").convert("RGBA"))
     imgs["neutral"] = neutral                                        # exactly the rig's drawing
-    zones, info = find_zones(neutral, head, {k: v for k, v in imgs.items() if k != "neutral"})
-    alpha = {k: soft(z & head) for k, z in zones.items()}
+    zones, info = find_zones(neutral, head, {k: v for k, v in imgs.items() if k != "neutral"},
+                             profile=view != "front")
+    # eyes / brows stay inside the drawing; only the mouth may reach past the outline (an open
+    # mouth in profile pokes out of the face) — else image background shows as a light patch
+    # inside the drawing, with enclosed holes filled (the cleaner left a profile eye white
+    # transparent: it was close to the cream background) so face layers can cover them
+    solid = ndi.binary_fill_holes(neutral[..., 3] > 128)
+    inside = (reach | ~hair_px) & solid if view != "front" else reach
+    alpha = {k: soft(z & (reach if k == "mouth" else inside)) for k, z in zones.items()}
     face_zone = ndi.binary_dilation(np.any(list(zones.values()), 0), iterations=12) & head
-    if SYNTH_BLINK:                                                  # drawn from the neutral eyes
+    if synth_blink:                                                  # drawn from the neutral eyes
         imgs.update(synth_blinks(neutral, info["pupils"], info["eye_spacing"]))
     fixes = {}
     for k in list(imgs):
-        if k == "neutral" or (SYNTH_BLINK and k in ("eyes_half", "eyes_closed")):
+        if k == "neutral" or (synth_blink and k in ("eyes_half", "eyes_closed")):
             continue
         imgs[k], fixes[k] = match_to_neutral(imgs[k], neutral, face_zone)
 
+    if view != "front":                      # transparent outside each image's own outline
+        from src.onboarding.sheet_cleaner import foreground_mask
+        for k, im in imgs.items():
+            if k == "neutral":
+                continue
+            own_fg, _, _, _ = foreground_mask(im[..., :3])      # flood fill from the border
+            im = im.copy()
+            im[~own_fg, 3] = 0
+            # past her neutral outline only real mouth features may show (lips, open mouth:
+            # darker than skin) — the image's light outline halo would glow under the chin
+            Lk = rgb2lab(im[..., :3] / 255.0)[..., 0]
+            neutral_solid = ndi.binary_fill_holes(neutral[..., 3] > 128)
+            im[~neutral_solid & (Lk > OUTSIDE_MAX_L), 3] = 0
+            imgs[k] = im
+
     out = char / "faces" / view
     lab_n = rgb2lab(neutral[..., :3] / 255.0)
-    open_n = [eye_opening(lab_n, np.array(p), info["eye_spacing"]) for p in info["pupils"]]
+    open_n = [eye_opening(lab_n, np.array(p), info["eye_spacing"], ndi.binary_fill_holes(neutral[..., 3] > 128))
+              for p in info["pupils"]]
+    # where the actual eye is, the eye layer wins over the (large) brow zone — else the
+    # neutral brow layer brings back a corner of the open eye over a blink
+    eye_px = ndi.binary_dilation(np.any(open_n, 0), iterations=3)
+    zones["brows"] &= ~eye_px
+    zones["eyes"] |= eye_px & (zones["eyes"] | ndi.binary_dilation(zones["eyes"], iterations=4))
+    alpha["brows"] = soft(zones["brows"] & (reach if view == "front" else inside))
+    alpha["eyes"] = soft(zones["eyes"] & (reach if view == "front" else inside))
     brow_block = ndi.binary_dilation(zones["brows"], iterations=2)
     info["eye_shift"] = {}
     for layer in LAYERS:
@@ -294,15 +365,15 @@ def run(character, view="front"):
             if old.stem not in imgs:
                 old.unlink()
         for name, im in imgs.items():
-            if layer == "eyes":                                     # tight eye cut for every image
+            if layer == "eyes" and view == "front":                 # tight eye cut for every image
                 # blinks drawn from the neutral eyes are already in place: never re-align them
-                synth = SYNTH_BLINK and name in ("eyes_half", "eyes_closed")
-                cut, shifts = aligned_eyes(im, neutral, open_n, info, brow_block, head,
-                                           align=not (synth or name == "neutral"))
+                synth = synth_blink and name in ("eyes_half", "eyes_closed")
+                cut, shifts = aligned_eyes(im, neutral, open_n, info, brow_block, reach,
+                                           align=not (synth or name in ("neutral", "eyes_half", "eyes_closed")))
                 info["eye_shift"][name] = shifts
             else:
                 cut = im.copy()
-                cut[..., 3] = (alpha[layer] * (im[..., 3] > 0) * 255).astype(np.uint8)
+                cut[..., 3] = (alpha[layer] * (im[..., 3] / 255.0) * 255).astype(np.uint8)
             save_image(cut, out / layer / f"{name}.png")
 
     # check: the neutral layers over the head reproduce the drawing
@@ -323,13 +394,32 @@ def run(character, view="front"):
                                            axis=-1)[outside].mean()), 2) for k, v in imgs.items() if k != "neutral"}
     info.update({"images": sorted(imgs), "identity_max_diff": round(identity, 2), "fixes": fixes,
                  "eye_layer_brow_px": brow_overlap,
-                 "outside_zone_mean_dE": noise, "layers": list(LAYERS), "blink": BLINK})
+                 "outside_zone_mean_dE": noise, "layers": list(LAYERS), "blink": vcfg["blink"]})
     save_text(json.dumps(info, indent=2), out / "face.json")
-    save_text(json.dumps({"recipes": RECIPES, "blink": BLINK, "layers": list(LAYERS)}, indent=2),
-              config.ROOT / "expressions" / "recipes.json")
-    sheet(char, neutral, head, out, view)
+    recipes = view_recipes(imgs) if view != "front" else RECIPES
+    rp = config.ROOT / "expressions" / "recipes.json"
+    allr = json.loads(rp.read_text()) if rp.exists() else {}
+    allr.update({"layers": list(LAYERS)})
+    if view == "front":
+        allr.update({"recipes": RECIPES, "blink": BLINK})
+    else:
+        allr[f"recipes_{view}"] = recipes
+        allr[f"blink_{view}"] = vcfg["blink"]
+    save_text(json.dumps(allr, indent=2), rp)
+    sheet(char, neutral, head, out, view, recipes, vcfg["blink"])
     print(json.dumps({k: info[k] for k in ("pupils", "eye_spacing", "mouth_centre", "identity_max_diff")}))
     return info
+
+
+def view_recipes(imgs):
+    """side view: one recipe per expression image that exists (all three layers from it);
+    moods without an image fall back to the closest one that exists."""
+    have = [n for n in ("neutral", "smile", "sad", "worried", "shocked") if n in imgs]
+    rec = {n: {"eyes": n, "brows": n, "mouth": n} for n in have}
+    for want, alt in (("thoughtful", "neutral"), ("look_down", "sad"), ("worried", "sad")):
+        if want not in rec and alt in rec:
+            rec[want] = rec[alt]
+    return rec
 
 
 def compose(neutral, out, recipe, eyes_override=None):
@@ -342,11 +432,11 @@ def compose(neutral, out, recipe, eyes_override=None):
     return img.astype(np.uint8)
 
 
-def sheet(char, neutral, head, out, view):
+def sheet(char, neutral, head, out, view, recipes, blink):
     ys, xs = np.where(head)
     box = (xs.min() - 30, ys.min() - 40, xs.max() + 30, ys.max() + 25)
-    tiles = [(n, compose(neutral, out, r)) for n, r in RECIPES.items()]
-    tiles += [(f"blink:{e}", compose(neutral, out, RECIPES["neutral"], e)) for e in ("eyes_half", "eyes_closed")]
+    tiles = [(n, compose(neutral, out, r)) for n, r in recipes.items()]
+    tiles += [(f"blink:{e}", compose(neutral, out, recipes["neutral"], e)) for e in dict.fromkeys(blink)]
     w, h = box[2] - box[0], box[3] - box[1]
     s = 2
     o = Image.new("RGB", (w * s * 4, (h * s + 24) * 2), "white")
@@ -363,4 +453,6 @@ def sheet(char, neutral, head, out, view):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--character", default="protagonist")
-    run(ap.parse_args().character)
+    ap.add_argument("--view", default="front", choices=list(VIEWS))
+    a = ap.parse_args()
+    run(a.character, a.view)

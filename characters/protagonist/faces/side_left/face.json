@@ -1,0 +1,88 @@
+{
+  "pupils": [
+    [
+      449.1,
+      248.2
+    ]
+  ],
+  "eye_spacing": 70.0,
+  "eye_radii": [
+    35.0,
+    29.4
+  ],
+  "brow_centres": [
+    [
+      449.1,
+      204.8
+    ]
+  ],
+  "mouth_centre": [
+    455.1,
+    314.7
+  ],
+  "mouth_radii": [
+    43.4,
+    28.5
+  ],
+  "eye_shift": {},
+  "images": [
+    "eyes_closed",
+    "neutral",
+    "sad",
+    "shocked",
+    "smile",
+    "worried"
+  ],
+  "identity_max_diff": 0.0,
+  "fixes": {
+    "eyes_closed": {
+      "skin_px": 6839,
+      "mean_shift_dE": 1.2,
+      "sharpened": true
+    },
+    "smile": {
+      "skin_px": 6677,
+      "mean_shift_dE": 1.77,
+      "sharpened": true
+    },
+    "sad": {
+      "skin_px": 6330,
+      "mean_shift_dE": 1.73,
+      "sharpened": true
+    },
+    "shocked": {
+      "skin_px": 5975,
+      "mean_shift_dE": 0.57,
+      "sharpened": true
+    },
+    "worried": {
+      "skin_px": 6309,
+      "mean_shift_dE": 0.94,
+      "sharpened": true
+    }
+  },
+  "eye_layer_brow_px": {
+    "eyes_closed": 0,
+    "smile": 0,
+    "neutral": 0,
+    "sad": 0,
+    "shocked": 0,
+    "worried": 0
+  },
+  "outside_zone_mean_dE": {
+    "eyes_closed": 3.38,
+    "smile": 4.89,
+    "sad": 7.37,
+    "shocked": 5.84,
+    "worried": 5.47
+  },
+  "layers": [
+    "eyes",
+    "brows",
+    "mouth"
+  ],
+  "blink": [
+    "eyes_closed",
+    "eyes_closed"
+  ]
+}
