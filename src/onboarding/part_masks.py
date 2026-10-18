@@ -63,6 +63,7 @@ EAR_MIN_PX = 40        # skin island inside the hair this big = ear
 TIE_A = 12             # scrunchie: dark but red (a* ≈ 17; hair a* ≈ 3)
 CROTCH_FRAC = 0.10     # crotch below hips, as fraction of hip→knee
 MIN_PART_PX = 150
+OPTIONAL_PARTS = {"ponytail", "strand_r", "strand_l"}   # a character may not have these
 LIGHT_L = 72           # L* above this is never denim (denim ~40)
 TEE_TOUCH = 6          # tee-coloured px this close to the tee body stay tee (never jeans)
 MIN_GAP_PX = 2         # background run this wide = arm separated from body
@@ -99,15 +100,24 @@ def load(char_dir):
     return rgba, kp, pal
 
 
-def classify(lab, fg, pal):
-    """nearest palette colour (tee / jeans / sneakers / skin); dark pixels → -1."""
-    names = ["tee", "jeans", "sneakers", "skin"]
+def classify(lab, fg, pal, head_bottom=None):
+    """nearest palette colour (tee / jeans / sneakers / skin); dark pixels → -1 (hair /
+    outline). A DARK top (dark tee) is the same colour as hair: then 'dark = hair' only
+    holds in the head zone (rows above head_bottom); below it dark pixels are the top."""
+    names = [n for n in ("tee", "jeans", "sneakers", "skin") if n in pal]
     ref = np.array([pal[n]["lab"] for n in names])
     d = ((lab[..., None, :] - ref[None, None]) ** 2).sum(-1)
     cls = np.argmin(d, -1)
-    cls[lab[..., 0] < DARK_L] = -1
+    dark = lab[..., 0] < DARK_L
+    if dark_top(pal) and head_bottom is not None:
+        dark[int(head_bottom):] = False
+    cls[dark] = -1
     cls[~fg] = -2
     return cls, names
+
+
+def dark_top(pal):
+    return pal["tee"]["lab"][0] < DARK_L + 10
 
 
 def side(p, a, b):
@@ -125,7 +135,8 @@ def split_parts(rgba, kp, pal):
     H, W = rgba.shape[:2]
     fg = rgba[..., 3] > 128
     lab = rgb2lab(rgba[..., :3] / 255.0)
-    cls, names = classify(lab, fg, pal)
+    head_bottom = kp["neck"][1] - 0.25 * (kp["neck"][1] - kp["nose"][1])   # above the shoulders
+    cls, names = classify(lab, fg, pal, head_bottom)
     ci = {n: i for i, n in enumerate(names)}
     yy, xx = np.mgrid[:H, :W]
     P = np.stack([xx, yy], -1).astype(float)
@@ -144,9 +155,11 @@ def split_parts(rgba, kp, pal):
     sizes = ndi.sum(hl > 0, hl, range(1, n + 1))
     blobs = [i + 1 for i, s in enumerate(sizes) if s >= HAIR_MIN_PX]
     blobs.sort(key=lambda i: -sizes[i - 1])
-    head_blob, tail_blob = (hl == blobs[0]), (hl == blobs[1])   # biggest = head hair
-    if np.where(tail_blob)[1].mean() > kp["nose"][0]:
-        raise RuntimeError("ponytail blob not on her right (viewer's left)")
+    head_blob = hl == blobs[0]                                    # biggest = head hair
+    # a second big blob beside the head = ponytail (optional: short hair has none)
+    tail_blob = np.zeros_like(head_blob)
+    if len(blobs) > 1 and np.where(hl == blobs[1])[1].mean() < kp["nose"][0]:
+        tail_blob = hl == blobs[1]
 
     # face = skin of the head zone, holes (eyes, brows, mouth) filled, outline included
     head_zone = fg & (yy < collar_y + 40) & ~ndi.binary_dilation(tee_body, iterations=2)
@@ -166,12 +179,12 @@ def split_parts(rgba, kp, pal):
     face |= ears
     hair &= ~ears
     d_head = ndi.distance_transform_edt(~head_blob)
-    d_tail = ndi.distance_transform_edt(~tail_blob)
+    d_tail = ndi.distance_transform_edt(~tail_blob) if tail_blob.any() else np.full(head_blob.shape, np.inf)
     to_tail = d_tail < d_head
     free = np.minimum(d_head, d_tail) > FAR_FROM_BLOB
     face_right = np.where(face.any(0))[0].max()
     ear_y = (kp["l_ear"][1] + kp["r_ear"][1]) / 2
-    strand_r = hair & free & (xx > kp["nose"][0]) & (yy > ear_y)
+    strand_r = hair & free & (xx > kp["nose"][0]) & (yy > ear_y) if tail_blob.any() else np.zeros_like(hair)
     # scrunchie (dark red tie) = ponytail root / pivot
     tie_xy = scrunchie(hair, lab, (xx < kp["nose"][0]) & (yy > ear_y))
     lab_map[hair & to_tail] = PART_ID["ponytail"]
@@ -371,6 +384,9 @@ def validate(lab_map, parts=PARTS, part_id=PART_ID):
     for name, _ in parts:
         m = lab_map == part_id[name]
         px = int(m.sum())
+        if px == 0 and name in OPTIONAL_PARTS:
+            stats[name] = {"px": 0, "absent": True}
+            continue
         if px < MIN_PART_PX:
             issues.append(f"{name}: missing / too small ({px}px)")
             stats[name] = {"px": px}
@@ -526,6 +542,8 @@ def head_pivots(kp, info, lab_map, tail_id):
         ys, xs = np.where(tail)
         top = ys < ys.min() + 15
         pivots["scrunchie"] = np.array([xs[top].mean(), ys[top].mean()])
+    else:                                # no ponytail (short hair): unused, any valid point
+        pivots["scrunchie"] = pivots["neck_top"]
     pivots["strand_top"] = np.array(info["strand_top"]) if info.get("strand_top") else pivots["neck_top"]
     if info.get("waist"):
         pivots["waist"] = np.array(info["waist"])

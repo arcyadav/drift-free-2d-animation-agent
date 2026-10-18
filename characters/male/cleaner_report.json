@@ -1,0 +1,31 @@
+{
+  "views": {
+    "front": {
+      "bg_rgb": [
+        232.0,
+        225.0,
+        210.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1460,
+      "src": "assets/raw/male/turnaround/front.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9149
+    },
+    "3q_left": {
+      "missing": true
+    },
+    "side_left": {
+      "missing": true
+    },
+    "back": {
+      "missing": true
+    }
+  },
+  "apose": {},
+  "faces": {}
+}

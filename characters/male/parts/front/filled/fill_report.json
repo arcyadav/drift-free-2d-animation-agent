@@ -1,0 +1,154 @@
+{
+  "view": "front",
+  "added_px": {
+    "foot_r": 3194,
+    "foot_l": 3606,
+    "leg_r": 7530,
+    "leg_l": 4747,
+    "pelvis": 6743,
+    "neck": 3826,
+    "torso": 4134,
+    "head": 3941,
+    "head_hair": 0,
+    "strand_r": 0,
+    "ponytail": 0,
+    "upper_arm_r": 4385,
+    "forearm_r": 1185,
+    "hand_r": 266,
+    "upper_arm_l": 4771,
+    "forearm_l": 1082,
+    "hand_l": 233
+  },
+  "underlap": [
+    [
+      "torso",
+      [
+        "upper_arm_l",
+        "upper_arm_r"
+      ],
+      70
+    ],
+    [
+      "torso",
+      [
+        "forearm_l",
+        "forearm_r",
+        "hand_l",
+        "hand_r"
+      ],
+      14
+    ],
+    [
+      "torso",
+      [
+        "ponytail",
+        "head_hair"
+      ],
+      40
+    ],
+    [
+      "neck",
+      [
+        "head",
+        "head_hair",
+        "ponytail",
+        "strand_r"
+      ],
+      30
+    ],
+    [
+      "head",
+      [
+        "head_hair",
+        "ponytail",
+        "strand_r"
+      ],
+      18
+    ],
+    [
+      "head_hair",
+      [
+        "ponytail"
+      ],
+      25
+    ],
+    [
+      "pelvis",
+      [
+        "torso"
+      ],
+      25
+    ],
+    [
+      "leg_l",
+      [
+        "pelvis"
+      ],
+      30
+    ],
+    [
+      "leg_r",
+      [
+        "pelvis",
+        "leg_l"
+      ],
+      30
+    ],
+    [
+      "foot_l",
+      [
+        "leg_l"
+      ],
+      25
+    ],
+    [
+      "foot_r",
+      [
+        "leg_r"
+      ],
+      25
+    ]
+  ],
+  "caps": [
+    [
+      "upper_arm_l",
+      "upper_arm_l"
+    ],
+    [
+      "upper_arm_r",
+      "upper_arm_r"
+    ],
+    [
+      "forearm_l",
+      "forearm_l"
+    ],
+    [
+      "forearm_r",
+      "forearm_r"
+    ],
+    [
+      "upper_arm_l",
+      "forearm_l"
+    ],
+    [
+      "upper_arm_r",
+      "forearm_r"
+    ],
+    [
+      "hand_l",
+      "hand_l"
+    ],
+    [
+      "hand_r",
+      "hand_r"
+    ],
+    [
+      "forearm_l",
+      "hand_l"
+    ],
+    [
+      "forearm_r",
+      "hand_r"
+    ]
+  ]
+}

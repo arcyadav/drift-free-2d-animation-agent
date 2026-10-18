@@ -113,10 +113,14 @@ def find_zones(neutral, head, expressions, profile=False):
         d = np.linalg.norm(rgb2lab(e[..., :3] / 255.0) - lab, axis=-1)
         changed |= below & (d > 10)
     changed = ndi.binary_opening(changed, iterations=1)
-    cy, cx = ndi.center_of_mass(changed)
-    my = np.where(changed)[0]
-    mouth_c = np.array([cx, cy])
-    m_rx, m_ry = 0.62 * gap, 0.5 * (np.percentile(my, 97) - np.percentile(my, 3)) + 4
+    if changed.sum() > 50:
+        cy, cx = ndi.center_of_mass(changed)
+        my = np.where(changed)[0]
+        mouth_c = np.array([cx, cy])
+        m_rx, m_ry = 0.62 * gap, 0.5 * (np.percentile(my, 97) - np.percentile(my, 3)) + 4
+    else:                                   # no expression images yet: face proportions
+        mouth_c = np.mean(eyes, 0) + np.array([0.0, 0.85 * gap])
+        m_rx, m_ry = 0.62 * gap, 0.22 * gap
     zones = {
         "eyes": np.any([ellipse(head.shape, c, rx, ry) for c in eye_c], 0),
         # tall enough for the expressions' brows (sad / worried raise the inner ends and move
@@ -303,9 +307,9 @@ def run(character, view="front"):
     else:
         reach = head
         hair_px = np.zeros_like(head)
-    _, t, _, size = clean_image(config.ASSETS_RAW / "turnaround" / f"{view}.png")
+    _, t, _, size = clean_image(config.raw_dir(character) / "turnaround" / f"{view}.png")
     imgs = {}
-    for p in sorted((config.ASSETS_RAW / "faces" / view).glob("*.png")):
+    for p in sorted((config.raw_dir(character) / "faces" / view).glob("*.png")):
         # plain aligned image: no background removal (it punched out the bright eye whites)
         raw = Image.open(p).convert("RGBA")
         if raw.size != size:
@@ -397,15 +401,20 @@ def run(character, view="front"):
                  "outside_zone_mean_dE": noise, "layers": list(LAYERS), "blink": vcfg["blink"]})
     save_text(json.dumps(info, indent=2), out / "face.json")
     recipes = view_recipes(imgs) if view != "front" else RECIPES
-    rp = config.ROOT / "expressions" / "recipes.json"
-    allr = json.loads(rp.read_text()) if rp.exists() else {}
-    allr.update({"layers": list(LAYERS)})
-    if view == "front":
-        allr.update({"recipes": RECIPES, "blink": BLINK})
-    else:
-        allr[f"recipes_{view}"] = recipes
-        allr[f"blink_{view}"] = vcfg["blink"]
-    save_text(json.dumps(allr, indent=2), rp)
+    # this character's recipes: any layer image it does not have falls back to its neutral
+    recipes = {n: {L: (src if src in imgs else "neutral") for L, src in r.items()} for n, r in recipes.items()}
+    info["recipes"] = recipes
+    save_text(json.dumps(info, indent=2), out / "face.json")
+    if character == "protagonist":                 # the shared library definition
+        rp = config.ROOT / "expressions" / "recipes.json"
+        allr = json.loads(rp.read_text()) if rp.exists() else {}
+        allr.update({"layers": list(LAYERS)})
+        if view == "front":
+            allr.update({"recipes": RECIPES, "blink": BLINK})
+        else:
+            allr[f"recipes_{view}"] = recipes
+            allr[f"blink_{view}"] = vcfg["blink"]
+        save_text(json.dumps(allr, indent=2), rp)
     sheet(char, neutral, head, out, view, recipes, vcfg["blink"])
     print(json.dumps({k: info[k] for k in ("pupils", "eye_spacing", "mouth_centre", "identity_max_diff")}))
     return info

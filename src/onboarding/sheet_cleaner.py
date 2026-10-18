@@ -193,7 +193,7 @@ def contact_sheet(items, out_path, cols=4, thumb_h=600):
 
 
 def run(character):
-    raw = config.ASSETS_RAW
+    raw = config.raw_dir(character)
     out = config.CHARACTERS / character
     work = out / "work"
     for sub in ("views", "apose", "work/faces_clean"):
@@ -212,13 +212,13 @@ def run(character):
         report["views"][view] = info
         sheet_items.append((f"view/{view}", im))
 
-    for p in sorted((raw / "apose").glob("*.png")):
+    for p in sorted((raw / "apose").glob("*.png")) if (raw / "apose").exists() else []:
         im, _, info, _ = clean_image(p)
         im.save(out / "apose" / p.name)
         report["apose"][p.stem] = info
         sheet_items.append((f"apose/{p.stem}", im))
 
-    for view_dir in sorted((raw / "faces").iterdir()):
+    for view_dir in sorted((raw / "faces").iterdir()) if (raw / "faces").exists() else []:
         if not view_dir.is_dir() or view_dir.name not in transforms:
             continue
         t, size = transforms[view_dir.name]

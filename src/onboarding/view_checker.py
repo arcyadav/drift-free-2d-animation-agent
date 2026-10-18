@@ -46,6 +46,60 @@ def build_palette(rgb, mask):
 
 
 def name_clusters(centres, rgb, mask):
+    """Name clusters: colour rules first (light tee, blue jeans), and if the outfit does not fit
+    them, purely by where each colour sits on the body (any outfit)."""
+    try:
+        names = name_by_colour(centres, rgb, mask)
+        if plausible(names, centres, rgb, mask):
+            return names
+    except ValueError:
+        pass
+    return name_by_position(centres, rgb, mask)
+
+
+def _shares(centres, rgb, mask):
+    lab = rgb2lab(rgb.astype(np.float64) / 255)
+    nearest = np.linalg.norm(lab[..., None, :] - centres[None, None], axis=-1).argmin(-1)
+    rows = np.where(mask.any(1))[0]
+    top, bot = rows.min(), rows.max()
+
+    def share(i, f0, f1):            # fraction of the cluster's pixels in a body-height band
+        m = mask & (nearest == i)
+        y0, y1 = int(top + f0 * (bot - top)), int(top + f1 * (bot - top))
+        return m[y0:y1].sum() / max(m.sum(), 1)
+    return share
+
+
+def plausible(names, centres, rgb, mask):
+    """colour-named garments must also sit where that garment belongs."""
+    share = _shares(centres, rgb, mask)
+    return (share(names["tee"], 0.15, 0.50) > 0.5 and share(names["jeans"], 0.40, 0.98) > 0.5
+            and share(names["hair"], 0.0, 0.35) > 0.4)
+
+
+def name_by_position(centres, rgb, mask):
+    """garment = the colour that fills that body band (head / torso / legs / feet); skin = the
+    warm colour left over. Works for any outfit colours."""
+    share = _shares(centres, rgb, mask)
+    L, a, b = centres[:, 0], centres[:, 1], centres[:, 2]
+    idx = list(range(len(centres)))
+    warm = lambda i: a[i] + b[i] - abs(L[i] - 65)
+    names = {}
+    skin = max(idx, key=warm)
+    others = [i for i in idx if i != skin and warm(i) < warm(skin) - 15]   # not a skin shade
+    # hair and top may share a colour (dark hair + dark tee): each picked independently
+    names["hair"] = max(others, key=lambda i: share(i, 0.0, 0.10) - 0.01 * L[i])
+    names["tee"] = max(others, key=lambda i: share(i, 0.20, 0.45))
+    left = [i for i in others if i not in (names["hair"], names["tee"])]
+    names["jeans"] = max(left, key=lambda i: share(i, 0.55, 0.88))
+    left.remove(names["jeans"])
+    if left:
+        names["sneakers"] = max(left, key=lambda i: share(i, 0.92, 1.0))
+    names["skin"] = skin
+    return names
+
+
+def name_by_colour(centres, rgb, mask):
     """Name clusters by colour *and* where they sit on the body.
     Unnamed clusters are outlines/shadows."""
     L, a, b = centres[:, 0], centres[:, 1], centres[:, 2]

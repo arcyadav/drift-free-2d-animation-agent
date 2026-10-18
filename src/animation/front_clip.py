@@ -58,6 +58,9 @@ class FrontClip:
                 self.swaps[part] = np.asarray(Image.open(p).convert("RGBA"))
         self.ground_y = max(p["bbox"][3] for n, p in self.meta["parts"].items() if n.startswith("foot"))
         self.recipes = json.loads((config.ROOT / "expressions" / "recipes.json").read_text())
+        own = self.char / "faces" / "front" / "face.json"
+        if own.exists() and "recipes" in json.loads(own.read_text()):     # per-character availability
+            self.recipes["recipes"] = json.loads(own.read_text())["recipes"]
         face_dir = self.char / "faces" / "front"
         self.face = {}
         if face_dir.exists():
@@ -166,8 +169,9 @@ class FrontClip:
                 if self.action in ACTION_FACE and not (layer == "eyes" and blink):
                     face = ACTION_FACE_BY_EXPR.get((self.action, self.expression), ACTION_FACE[self.action])
                     src = face[layer] if tilted else "neutral"      # face changes as the head tilts
-                if (layer, src) in self.face:
-                    imgs[f"face_{layer}"] = self.face[(layer, src)]
+                if (layer, src) not in self.face:                    # this character lacks it
+                    src = "neutral"
+                imgs[f"face_{layer}"] = self.face[(layer, src)]
             blinks += blink == "eyes_closed"
             writer.append_data(rigid_pose.render(self.meta, imgs, local, camera=cam,
                                                  offsets={"head": (0.0, drop)} if drop else None,

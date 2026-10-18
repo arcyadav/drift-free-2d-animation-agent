@@ -39,7 +39,9 @@ RULES = {
         "underlap": [
             # no drawn outline: it came out darker than the artist's light tee lines and
             # showed as a dark sliver under the sleeve as soon as the arm moved
-            ("torso", ["upper_arm_l", "upper_arm_r", "forearm_l", "forearm_r", "hand_l", "hand_r"], 14, False, False),
+            # deep under the sleeves (they lift away in react / wave), never below the hem
+            ("torso", ["upper_arm_l", "upper_arm_r"], 70, False, "hem"),
+            ("torso", ["forearm_l", "forearm_r", "hand_l", "hand_r"], 14, False, False),
             ("torso", ["ponytail", "head_hair"], 40, False, False),
             ("neck", ["head", "head_hair", "ponytail", "strand_r"], 30, False, False),
             ("head", ["head_hair", "ponytail", "strand_r"], 18, False, False),
@@ -91,6 +93,7 @@ RULES = {
 OUTLINE_PX = 2
 OUTLINE_DL = 15        # outline pixels: L* at least this much darker than the part's median
 MIN_CAP_R = 10
+SEAM_BLEED = 3         # px every part extends under the parts drawn after it
 FILL_DE = 18           # fill source pixels: within this colour distance of the part's median
 BORDER_SKIP = 5        # ignore the part's pixels this close to the covering part (outline, shadow)
 RING_PX = 40           # colour of a hidden patch = median of clean pixels within this distance
@@ -148,6 +151,7 @@ def run(character, view="front"):
     # fills never reach the soft rim, nor the outer band whose background halo the cut-outs
     # fade out (a fill there would show through the faded edge)
     solid = ndi.binary_erosion(art[..., 3] == 255, iterations=1) & ~silhouette_band(art)
+    solid_all = art[..., 3] > 0
     copies = {n: p for n, p in meta["parts"].items() if p.get("copy_of")}   # far limbs (side view)
     parts = {n: np.asarray(Image.open(d / f"{n}.png").convert("RGBA")).copy()   # cut-outs (clean rims)
              for n in ids if n not in copies}
@@ -204,6 +208,25 @@ def run(character, view="front"):
                 src[m] = parts[i][m]
         parts[name][region] = src[region]                       # identical at rest
         added[name] += int(region.sum())
+
+    # seam bleed: every part continues a few px under each part drawn after it. Parts are
+    # shrunk separately for the video, so both edges at a seam turn semi-transparent and the
+    # background shone through (invisible on a white tee, a light streak on a dark one)
+    order = meta["layer_order"]
+    for i, name in enumerate(order):
+        if name not in parts:
+            continue
+        own = parts[name][..., 3] > 0
+        later = np.zeros_like(own)
+        for n2 in order[i + 1:]:
+            if n2 in parts:
+                later |= parts[n2][..., 3] == 255
+        band = ndi.binary_dilation(own, iterations=SEAM_BLEED) & later & ~own & solid_all
+        if band.any():
+            _, (iy, ix) = ndi.distance_transform_edt(~(parts[name][..., 3] == 255), return_indices=True)
+            parts[name][band, :3] = parts[name][iy[band], ix[band], :3]
+            parts[name][band, 3] = 255
+            added[name] += int(band.sum())
 
     from src.onboarding.part_masks_side import far_copy, outer_edge
     for n, p in copies.items():                                   # far limbs: shaded filled copies

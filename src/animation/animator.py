@@ -86,7 +86,9 @@ class Walker:
         if not d.exists() or not rp.exists():
             return None
         rec = json.loads(rp.read_text())
-        recipes = rec.get(f"recipes_{view}", {})
+        own = d / "face.json"
+        recipes = json.loads(own.read_text()).get("recipes") if own.exists() else None
+        recipes = recipes or rec.get(f"recipes_{view}", {})
         recipe = recipes.get(expression) or recipes.get("neutral")
         if not recipe:
             return None

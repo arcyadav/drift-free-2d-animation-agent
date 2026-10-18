@@ -25,12 +25,12 @@
     ]
   ],
   "mouth_centre": [
-    521.5,
-    306.9
+    518.4,
+    311.0
   ],
   "mouth_radii": [
     43.8,
-    25.0
+    27.5
   ],
   "eye_shift": {
     "eyes_closed": [
@@ -61,6 +61,26 @@
       [
         0.0,
         0.0
+      ]
+    ],
+    "male smile": [
+      [
+        17.1,
+        3.0
+      ],
+      [
+        18.0,
+        3.0
+      ]
+    ],
+    "man shocked": [
+      [
+        7.0,
+        -18.0
+      ],
+      [
+        -12.2,
+        14.0
       ]
     ],
     "neutral": [
@@ -118,6 +138,8 @@
     "eyes_closed",
     "eyes_down",
     "eyes_half",
+    "male smile",
+    "man shocked",
     "neutral",
     "sad",
     "shocked",
@@ -127,24 +149,32 @@
   "identity_max_diff": 0.0,
   "fixes": {
     "eyes_down": {
-      "skin_px": 10281,
+      "skin_px": 10212,
       "mean_shift_dE": 0.73
     },
+    "male smile": {
+      "skin_px": 8655,
+      "mean_shift_dE": 1.37
+    },
+    "man shocked": {
+      "skin_px": 8435,
+      "mean_shift_dE": 1.79
+    },
     "sad": {
-      "skin_px": 10877,
+      "skin_px": 10807,
       "mean_shift_dE": 1.63,
       "sharpened": true
     },
     "shocked": {
-      "skin_px": 10674,
+      "skin_px": 10606,
       "mean_shift_dE": 5.29
     },
     "smile": {
-      "skin_px": 11267,
+      "skin_px": 11197,
       "mean_shift_dE": 1.09
     },
     "worried": {
-      "skin_px": 11021,
+      "skin_px": 10950,
       "mean_shift_dE": 0.39
     }
   },
@@ -152,6 +182,8 @@
     "eyes_closed": 0,
     "eyes_down": 0,
     "eyes_half": 0,
+    "male smile": 0,
+    "man shocked": 0,
     "neutral": 0,
     "sad": 0,
     "shocked": 0,
@@ -159,13 +191,15 @@
     "worried": 0
   },
   "outside_zone_mean_dE": {
-    "eyes_closed": 0.73,
-    "eyes_down": 4.62,
-    "eyes_half": 0.73,
-    "sad": 3.44,
-    "shocked": 2.63,
-    "smile": 3.13,
-    "worried": 3.02
+    "eyes_closed": 0.72,
+    "eyes_down": 4.58,
+    "eyes_half": 0.72,
+    "male smile": 17.21,
+    "man shocked": 17.92,
+    "sad": 3.27,
+    "shocked": 2.52,
+    "smile": 3.06,
+    "worried": 2.99
   },
   "layers": [
     "eyes",
@@ -176,5 +210,42 @@
     "eyes_half",
     "eyes_closed",
     "eyes_half"
-  ]
+  ],
+  "recipes": {
+    "neutral": {
+      "eyes": "neutral",
+      "brows": "neutral",
+      "mouth": "neutral"
+    },
+    "smile": {
+      "eyes": "smile",
+      "brows": "smile",
+      "mouth": "smile"
+    },
+    "sad": {
+      "eyes": "sad",
+      "brows": "sad",
+      "mouth": "sad"
+    },
+    "worried": {
+      "eyes": "worried",
+      "brows": "worried",
+      "mouth": "worried"
+    },
+    "shocked": {
+      "eyes": "shocked",
+      "brows": "shocked",
+      "mouth": "shocked"
+    },
+    "look_down": {
+      "eyes": "sad",
+      "brows": "neutral",
+      "mouth": "neutral"
+    },
+    "thoughtful": {
+      "eyes": "eyes_down",
+      "brows": "neutral",
+      "mouth": "neutral"
+    }
+  }
 }

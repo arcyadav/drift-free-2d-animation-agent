@@ -30,13 +30,13 @@ ALIGN_MAX = 6.0         # mean abs diff (0-255) allowed between edit and view, a
 def run(character):
     char = config.CHARACTERS / character
     meta = json.loads((char / "parts" / "front" / "parts.json").read_text())
-    _, t_front, _, size = clean_image(config.ASSETS_RAW / "turnaround" / "front.png")
+    _, t_front, _, size = clean_image(config.raw_dir(character) / "turnaround" / "front.png")
     view = np.asarray(Image.open(char / "views" / "front.png").convert("RGBA")).astype(float)
     out = char / "hands" / "front"
     out.mkdir(parents=True, exist_ok=True)
     report = {}
     for raw, (pose, s) in SWAPS.items():
-        p = config.ASSETS_RAW / "hands" / f"{raw}.png"
+        p = config.raw_dir(character) / "hands" / f"{raw}.png"
         if not p.exists():
             continue
         im, _, _, _ = clean_image(p, transform=t_front, ref_size=size)

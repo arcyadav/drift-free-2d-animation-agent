@@ -4,6 +4,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS_RAW = ROOT / "assets" / "raw"
 CHARACTERS = ROOT / "characters"
+# raw character sheet per character (the protagonist's lives directly in assets/raw)
+RAW_DIRS = {"protagonist": ASSETS_RAW, "male": ASSETS_RAW / "male"}
+
+
+def raw_dir(character):
+    return RAW_DIRS.get(character, ASSETS_RAW / character)
 
 # Normalised canvas every view is placed on (rig works at this resolution;
 # final render is downscaled to 512x768).
