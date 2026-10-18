@@ -24,6 +24,7 @@
     43.4,
     28.5
   ],
+  "face_shift": {},
   "eye_shift": {},
   "images": [
     "eyes_closed",
@@ -84,5 +85,42 @@
   "blink": [
     "eyes_closed",
     "eyes_closed"
-  ]
+  ],
+  "recipes": {
+    "neutral": {
+      "eyes": "neutral",
+      "brows": "neutral",
+      "mouth": "neutral"
+    },
+    "smile": {
+      "eyes": "smile",
+      "brows": "smile",
+      "mouth": "smile"
+    },
+    "sad": {
+      "eyes": "sad",
+      "brows": "sad",
+      "mouth": "sad"
+    },
+    "worried": {
+      "eyes": "worried",
+      "brows": "worried",
+      "mouth": "worried"
+    },
+    "shocked": {
+      "eyes": "shocked",
+      "brows": "shocked",
+      "mouth": "shocked"
+    },
+    "thoughtful": {
+      "eyes": "neutral",
+      "brows": "neutral",
+      "mouth": "neutral"
+    },
+    "look_down": {
+      "eyes": "sad",
+      "brows": "sad",
+      "mouth": "sad"
+    }
+  }
 }

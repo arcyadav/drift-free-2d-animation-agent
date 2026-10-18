@@ -59,6 +59,7 @@ BROW_DOWN = 0.06        # ... centre shifted a little down (x eye spacing)
 FEATHER = 3.5           # px of soft edge on every layer
 SYNTH_BLINK = True      # blink frames drawn from the neutral eyes instead of the soft edits
 LASH_PX = 4.0           # lash line thickness at the lid
+FACE_SHIFT_MAX = 15     # px: largest whole-face shift corrected
 EYE_ALIGN_MAX = 18      # px: largest allowed eye re-alignment
 EYE_RING = 5            # px around the eye opening that belong to the eye layer (lashes)
 COVER_RING = 3          # px around the opening also repainted (its outline / lash)
@@ -189,7 +190,7 @@ def aligned_eyes(im, neutral, open_n, info, brow_block, reach, align=True):
     for p, on in zip(info["pupils"], open_n):
         # the expression's own eye: darkest blob near the neutral pupil (iris), its opening
         win = ellipse(lab.shape[:2], np.array(p), 0.45 * gap, 0.40 * gap) & reach
-        dark = win & (lab[..., 0] < PUPIL_L)
+        dark = win & (lab[..., 0] < PUPIL_L) & ~brow_block      # thick brows close to the eye
         cl, n = ndi.label(dark)
         if n == 0:
             continue
@@ -329,6 +330,24 @@ def run(character, view="front"):
     face_zone = ndi.binary_dilation(np.any(list(zones.values()), 0), iterations=12) & head
     if synth_blink:                                                  # drawn from the neutral eyes
         imgs.update(synth_blinks(neutral, info["pupils"], info["eye_spacing"]))
+    # whole-face alignment first: image edits can shift the entire face (his shocked edit moved
+    # it ~6 px down); measured on what does not change with expression (jaw, ears, nose)
+    info["face_shift"] = {}
+    stable = ndi.binary_dilation(head, iterations=6) & ~ndi.binary_dilation(np.any(list(zones.values()), 0), iterations=6)
+    g_n = np.where(stable, rgb2lab(neutral[..., :3] / 255.0)[..., 0], 0).astype(np.float32)
+    ys, xs = np.where(stable)
+    box = (slice(ys.min(), ys.max() + 1), slice(xs.min(), xs.max() + 1))
+    import cv2
+    win = cv2.createHanningWindow(g_n[box].shape[::-1], cv2.CV_32F)
+    for k in list(imgs):
+        if k == "neutral" or (synth_blink and k in ("eyes_half", "eyes_closed")):
+            continue
+        g_e = np.where(stable, rgb2lab(imgs[k][..., :3] / 255.0)[..., 0], 0).astype(np.float32)
+        (dx, dy), resp = cv2.phaseCorrelate(g_e[box], g_n[box], win)
+        if resp > 0.1 and max(abs(dx), abs(dy)) <= FACE_SHIFT_MAX and max(abs(dx), abs(dy)) >= 1.0:
+            M = np.float32([[1, 0, -dx], [0, 1, -dy]])
+            imgs[k] = cv2.warpAffine(imgs[k], M, (imgs[k].shape[1], imgs[k].shape[0]), flags=cv2.INTER_LINEAR)
+            info["face_shift"][k] = [round(-dx, 1), round(-dy, 1)]
     fixes = {}
     for k in list(imgs):
         if k == "neutral" or (synth_blink and k in ("eyes_half", "eyes_closed")):
