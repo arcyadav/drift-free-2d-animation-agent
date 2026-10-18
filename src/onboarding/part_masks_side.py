@@ -111,7 +111,8 @@ def split_parts(rgba, kp, pal):
     fg = rgba[..., 3] > 128
     lab = rgb2lab(rgba[..., :3] / 255.0)
     L = lab[..., 0]
-    cls, names = classify(lab, fg, pal)
+    head_bottom = kp["l_shoulder"][1] - 0.25 * (kp["l_shoulder"][1] - kp["nose"][1])
+    cls, names = classify(lab, fg, pal, head_bottom)            # dark top: dark = hair only up here
     ci = {n: i for i, n in enumerate(names)}
     yy, xx = np.mgrid[:H, :W]
     P = np.stack([xx, yy], -1).astype(float)
@@ -145,13 +146,13 @@ def split_parts(rgba, kp, pal):
     # ponytail: hair beyond a cut through the scrunchie, across the ponytail's direction
     ear_y = kp["l_ear"][1]
     tie = scrunchie(hair, lab, (xx > kp["l_ear"][0]) & (yy > ear_y - 30))
-    if tie is None:
-        raise RuntimeError("scrunchie not found in side view")
-    tie_p = np.array(tie)
-    seed = hair & (yy > tie_p[1]) & (xx > tie_p[0] - 10)
-    d = np.array([xx[seed].mean(), yy[seed].mean()]) - tie_p
-    d /= np.linalg.norm(d)
-    tail = hair & (((P - tie_p) @ d) > 0) & (xx > tie_p[0] - 25)
+    tail = np.zeros_like(hair)                                    # no ponytail (short hair)
+    if tie is not None:
+        tie_p = np.array(tie)
+        seed = hair & (yy > tie_p[1]) & (xx > tie_p[0] - 10)
+        d = np.array([xx[seed].mean(), yy[seed].mean()]) - tie_p
+        d /= np.linalg.norm(d)
+        tail = hair & (((P - tie_p) @ d) > 0) & (xx > tie_p[0] - 25)
     lab_map[hair & ~tail] = PART_ID["head_hair"]
     lab_map[tail] = PART_ID["ponytail"]
 

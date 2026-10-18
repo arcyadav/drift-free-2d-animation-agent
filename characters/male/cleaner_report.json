@@ -20,12 +20,106 @@
       "missing": true
     },
     "side_left": {
-      "missing": true
+      "bg_rgb": [
+        234.0,
+        228.0,
+        213.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 847,
+      "src": "assets/raw/male/turnaround/side_left.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9205
     },
     "back": {
       "missing": true
     }
   },
   "apose": {},
-  "faces": {}
+  "faces": {
+    "front/sad": {
+      "bg_rgb": [
+        231.0,
+        225.0,
+        210.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 1,
+      "fringe_px_unmixed": 1461,
+      "src": "assets/raw/male/faces/front/sad.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9149
+    },
+    "front/shocked": {
+      "bg_rgb": [
+        232.0,
+        225.0,
+        210.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1415,
+      "src": "assets/raw/male/faces/front/shocked.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9149
+    },
+    "front/smile": {
+      "bg_rgb": [
+        232.0,
+        225.0,
+        210.0
+      ],
+      "pockets_removed": 1,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 1445,
+      "src": "assets/raw/male/faces/front/smile.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9149
+    },
+    "side_left/eyes_closed": {
+      "bg_rgb": [
+        234.0,
+        227.0,
+        210.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 940,
+      "src": "assets/raw/male/faces/side_left/eyes_closed.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9205
+    },
+    "side_left/smile": {
+      "bg_rgb": [
+        234.0,
+        227.0,
+        211.0
+      ],
+      "pockets_removed": 0,
+      "specks_removed": 0,
+      "fringe_px_unmixed": 868,
+      "src": "assets/raw/male/faces/side_left/smile.png",
+      "src_size": [
+        1024,
+        1536
+      ],
+      "scale": 0.9205
+    }
+  }
 }

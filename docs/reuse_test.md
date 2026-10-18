@@ -1,23 +1,28 @@
-# Reuse test — second character (male, front view only), 2026-10-18
+# Reuse test — second character (male), 2026-10-18
 
-Input: one AI-generated front image (`assets/raw/male/turnaround/front.png`): dark tee, olive cargo
-pants, short black hair, sneakers — deliberately unlike the protagonist (white tee, blue jeans,
-curly ponytail).
+Input: AI-generated images of a deliberately different character — dark tee, olive cargo pants,
+short black hair, no ponytail (protagonist: white tee, blue jeans, curly ponytail):
+front view, side view, front smile / sad / shocked, side smile + eyes_closed, open hand (8 images).
 
-| Stage | Out of the box | Change needed (general, not per-character) |
+| Stage | Out of the box | Change needed (general rules, no per-character tuning) |
 |---|---|---|
 | Sheet Cleaner | ✅ | — |
-| Keypoints (RTMPose) | ✅ 0 issues | — |
-| Palette / View Checker | ❌ assumed light tee + blue jeans | garments named by body position when colour rules do not fit; hair and top may share a colour |
-| Part splitter | ❌ dark = hair; ponytail / strand / scrunchie required | 'dark = hair' only in the head zone when the top is dark; ponytail and strands optional |
-| Hidden fill | ⚠ seam streaks on a dark tee | generic seam bleed (all characters); deeper fill under sleeves |
-| Face Cutter | ⚠ needed expression images | per-character recipes; missing expressions fall back to neutral; blinks drawn from neutral eyes |
-| **Actions (wave, idle, look_down, react)** | ✅ **zero new animation work** | — |
+| Keypoints (RTMPose), front + side | ✅ 0 issues | — |
+| Palette / View Checker | ❌ assumed a light tee + blue jeans | garments named by body position when colour rules do not fit; hair and top may share a colour |
+| Part splitter (front + side) | ❌ dark = hair; ponytail / strand / scrunchie required | 'dark = hair' only in the head zone when the top is dark; ponytail and strands optional |
+| Hidden fill | ⚠ seam streaks on a dark tee | seam bleed under later parts; deeper fill under sleeves (both characters) |
+| Face Cutter | ⚠ profile eye found on the dark collar; thick brows taken as eyes | eye search ignores the brow zone; profile eye guided by the pose detector's eye keypoint; per-character recipes, missing expressions → neutral |
+| Hand swap (open hand) | ✅ | — |
+| **Actions: wave, idle, look_down, react, walk, walk_happy** | ✅ **zero new animation work** | — |
 
-Result: after making 4 rules general (no character-specific tuning), the second character was onboarded
-from a single image and performs the protagonist's front actions unchanged. The protagonist's outputs
-and tests are unchanged.
+Result: after making 6 rules general, the second character was onboarded automatically and performs
+all of the protagonist's actions with the same motion files (planted-foot slide 0.0 px in his walk).
+The protagonist's outputs are unchanged (her face layers pixel-identical; all tests pass).
 
-Remaining limits seen: extreme arm-raising poses (react) expose the background gap between arm and body
-of the A-pose drawing as light patches at the armpits — very visible on dark tops. Expressions need the
-character's own face images; the side view (walk) needs a side image.
+Limits seen:
+- **His shocked face does not composite well:** the edit drew the eyes ~10 px lower and much taller and
+  raised the brows into the hairline — features overlap the layer zones, so eyes / brows / mouth layers
+  cannot reassemble it cleanly (falls back to a mixed look). A whole-face swap would be the fix.
+- Extreme arm-raising poses (react) show the A-pose gap between arm and body as light patches at the
+  armpits — very visible on dark tops.
+- Expressions and the walk need the character's own face and side images (8 images here).

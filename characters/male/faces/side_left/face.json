@@ -1,0 +1,82 @@
+{
+  "pupils": [
+    [
+      461.4,
+      218.7
+    ]
+  ],
+  "eye_spacing": 70.0,
+  "eye_radii": [
+    35.0,
+    29.4
+  ],
+  "brow_centres": [
+    [
+      461.4,
+      175.3
+    ]
+  ],
+  "mouth_centre": [
+    479.8,
+    296.1
+  ],
+  "mouth_radii": [
+    43.4,
+    37.0
+  ],
+  "face_shift": {},
+  "eye_shift": {},
+  "images": [
+    "eyes_closed",
+    "neutral",
+    "smile"
+  ],
+  "identity_max_diff": 0.0,
+  "fixes": {
+    "eyes_closed": {
+      "skin_px": 6351,
+      "mean_shift_dE": 4.61,
+      "sharpened": true
+    },
+    "smile": {
+      "skin_px": 6255,
+      "mean_shift_dE": 3.54,
+      "sharpened": true
+    }
+  },
+  "eye_layer_brow_px": {
+    "eyes_closed": 0,
+    "smile": 0,
+    "neutral": 0
+  },
+  "outside_zone_mean_dE": {
+    "eyes_closed": 4.37,
+    "smile": 4.54
+  },
+  "layers": [
+    "eyes",
+    "brows",
+    "mouth"
+  ],
+  "blink": [
+    "eyes_closed",
+    "eyes_closed"
+  ],
+  "recipes": {
+    "neutral": {
+      "eyes": "neutral",
+      "brows": "neutral",
+      "mouth": "neutral"
+    },
+    "smile": {
+      "eyes": "smile",
+      "brows": "smile",
+      "mouth": "smile"
+    },
+    "thoughtful": {
+      "eyes": "neutral",
+      "brows": "neutral",
+      "mouth": "neutral"
+    }
+  }
+}

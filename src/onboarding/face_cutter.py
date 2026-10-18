@@ -79,7 +79,7 @@ def soft(mask):
     return np.clip(d_in / FEATHER, 0, 1)
 
 
-def find_zones(neutral, head, expressions, profile=False):
+def find_zones(neutral, head, expressions, profile=False, eye_prior=None):
     lab = rgb2lab(neutral[..., :3] / 255.0)
     dark = head & (lab[..., 0] < PUPIL_L)
     cl, n = ndi.label(dark)
@@ -94,6 +94,8 @@ def find_zones(neutral, head, expressions, profile=False):
             fill = sizes[i - 1] / ((np.ptp(ys) + 1) * (np.ptp(xs) + 1))
             elong = (np.ptp(xs) + 1) / (np.ptp(ys) + 1)
             score = fill * sizes[i - 1] / max(elong, 1 / elong)
+            if eye_prior is not None:                # the pose detector knows roughly where it is
+                score /= 1.0 + (np.hypot(xs.mean() - eye_prior[0], ys.mean() - eye_prior[1]) / 15.0) ** 2
             if score > best:
                 best, eyes = score, [np.array([xs.mean(), ys.mean()])]
         gap = PROFILE_GAP
@@ -318,8 +320,14 @@ def run(character, view="front"):
         imgs[vcfg["alias"].get(p.stem, p.stem)] = np.asarray(apply_transform(raw, t))
     neutral = np.asarray(Image.open(char / "views" / f"{view}.png").convert("RGBA"))
     imgs["neutral"] = neutral                                        # exactly the rig's drawing
+    kpf = char / "keypoints.json"
+    eye_prior = None
+    if view != "front" and kpf.exists():
+        j = json.loads(kpf.read_text()).get(view, {}).get("joints", {})
+        if "l_eye" in j and "r_eye" in j:
+            eye_prior = (np.array(j["l_eye"][:2]) + np.array(j["r_eye"][:2])) / 2
     zones, info = find_zones(neutral, head, {k: v for k, v in imgs.items() if k != "neutral"},
-                             profile=view != "front")
+                             profile=view != "front", eye_prior=eye_prior)
     # eyes / brows stay inside the drawing; only the mouth may reach past the outline (an open
     # mouth in profile pokes out of the face) — else image background shows as a light patch
     # inside the drawing, with enclosed holes filled (the cleaner left a profile eye white

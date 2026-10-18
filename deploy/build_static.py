@@ -73,6 +73,16 @@ def build(render=True):
 <div class="body"><div class="req">“{html.escape(q)}”</div><div class="chips">{chips}</div>
 <div class="note">decided by {html.escape(src)} · render {rep['timing_s']['render']} s on a laptop CPU</div>{notes}
 <details><summary>plan JSON</summary><pre>{html.escape(json.dumps(plan, indent=2))}</pre></details></div></div>""")
+    male_cards = ""
+    male = ROOT / "outputs" / "male"
+    for name, label in (("wave", "wave (smile, open hand)"), ("walk_happy", "happy walk (profile smile)"),
+                        ("look_down", "look down (sad)"), ("idle", "idle (blinks)")):
+        f = male / f"{name}.mp4"
+        if f.exists():
+            shutil.copy2(f, clips / f"male_{name}.mp4")
+            male_cards += (f'<div class="card"><video src="clips/male_{name}.mp4" controls loop muted playsinline '
+                           f'preload="metadata"></video><div class="body"><div class="req">{label}</div>'
+                           f'<div class="note">same motion as the protagonist</div></div></div>')
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Drift-Free Animation Agent</title><style>{CSS}</style></head><body><main>
 <h1>Drift-Free 2D Character Animation Agent</h1>
@@ -84,6 +94,10 @@ character <b>never changes</b> between frames or clips. UMC301 Project 3.</p>
 <h2>Requests → clips (pre-rendered by the agent)</h2>
 <p class="note">A live version (type any request) runs from the author's laptop during the demo — the same agent, including the local LLM.</p>
 <div class="grid">{''.join(cards)}</div>
+<h2>Second character — reuse test</h2>
+<p class="lead">A different character, onboarded automatically from 8 images, performing the <b>same
+motion files</b> — zero new animation work.</p>
+<div class="grid">{male_cards}</div>
 <h2>How it works</h2>
 <ol>
 <li><b>Onboarding (once per character):</b> a few AI-generated images (turnaround, expressions, hands) are cleaned,
