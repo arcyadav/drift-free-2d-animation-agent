@@ -2,7 +2,8 @@
 
 Author: Archana Yadav
 Duration: 10 days
-Status: Draft v3.7 (rig-based; classical onboarding — no SAM / no inpainting model; hand-designed walk; mirroring allowed for right-facing views; layered faces; 24 fps on 2s; local open-source LLM/VLM; deployed: static HF Space + live demo)
+Status: **Final, as built (19 Oct 2026)**. Sections 1–16 are the plan; **§0 says what was built**, and §16.1, §16.2 and
+`docs/evaluation.md` say what was measured. Where the plan and the build differ, §0 wins.
 
 ## Links
 | What | Link |
@@ -11,6 +12,34 @@ Status: Draft v3.7 (rig-based; classical onboarding — no SAM / no inpainting m
 | Showcase page (direct) | https://arcyadav-drift-free-2d-animation-agent.static.hf.space |
 | **Live agent (viva demo)** | run `run_demo.bat` / `python app.py --share` → public `https://<id>.gradio.live` link (72 h, laptop on); intranet: `python app.py --lan` → `http://<laptop-ip>:7860` |
 | Code (GitHub, private) | https://github.com/arcyadav/drift-free-2d-animation-agent |
+| Evaluation | `docs/evaluation.md` · reuse test `docs/reuse_test.md` |
+
+---
+
+## 0. Status as built
+| Part | Planned | Built | Notes |
+|---|---|---|---|
+| Sheet Cleaner | ✓ | ✅ | classical (flood fill, pocket removal, halo unmixing) |
+| View Checker | rules + VLM + DINOv2 | ⚠ rules only | palette (k-means Lab) + landmark checks; no VLM / DINOv2 (no GPU) |
+| Views rigged | front, 3/4 L, side L, back | ⚠ front + side L | 3/4 and back are cleaned and checked, not rigged; right side = mirror |
+| Part masks + hidden fill | SAM / inpainting as fallback | ✅ classical | palette regions × skeleton cuts; underlap, joint caps, seam bleed |
+| Deformation | 2D mesh / ARAP | ⚠ rigid parts + skinning | linear blend skinning at the knees; ARAP is future work |
+| Rig Tester loop | test poses + auto-fix | ⚠ as regression tests | `tests/` checks every cut-out; no automatic re-rigging loop |
+| Face Cutter | landmarks + SAM | ✅ classical | eyes / brows / mouth layers, front (8 images) + side (profile faces) |
+| Hand swaps | open, relaxed, fist | ✅ open + fist (front) | |
+| Actions | idle, wave, look_down, walk, turn (+ stretch) | ✅ idle, wave, look_down, react, walk + 3 mood walks | **turn not built**; nod / search_pockets / sit_down not built; run built then removed (quality) |
+| Expressions | neutral, blink, smile, sad, shocked | ✅ + worried, thoughtful | front all; side: smile / sad / worried / shocked; blinks both views |
+| Hair | spring chains | ✅ ponytail + strand springs | |
+| Foot lock | 2-bone IK | ✅ | slide 3.4 → 0.0 px |
+| Planner | rules + small LLM | ✅ | 97.8% rules / 100% rules + `qwen2.5:3b` on 46 requests |
+| Unknown action → ask for video | ✓ | ⚠ offline only | `video_import.py` turns a phone video into an action (the wave was made this way); not in the app UI |
+| Critic | metrics + VLM + DINOv2 / LPIPS | ⚠ metrics only | cracks, colours, foot slide, plan delivered; fix loop with seal (§16.1) |
+| Stylize pass | optional | ✗ | future work (§18, Level 3) |
+| Shots / camera | out of scope | ✅ added | full / medium / close-up |
+| Reuse test | second variant | ✅ different character | front actions transfer with zero new animation; his side walk not presentable (`docs/reuse_test.md`) |
+| Baselines | Animated Drawings, SVD | ⚠ Kling clip only | gait + identity measured against a commercial AI video |
+| Human ratings | 8–10 raters | ✗ | not done (time) |
+| Deployment | Gradio on HF Spaces | ✅ static Space + live laptop demo | HF CPU Gradio needs PRO (§15.2) |
 
 ---
 
@@ -29,9 +58,9 @@ animate("protagonist", "wave", expression="smile")  → wave.mp4
 
 ## 3. Core idea
 - **Don't redraw the character. Rig it.**
-- Cut the character into parts once → build a 2D mesh + skeleton → move the parts.
+- Cut the character into parts once → build a skeleton → move the parts (as built: rigid parts, soft knees).
 - Every pixel comes from my images, so the character **cannot drift**.
-- Optional AI "redraw" pass adds a hand-drawn feel; the critic guards it.
+- Optional AI "redraw" pass adds a hand-drawn feel; the critic guards it. (Not built; §18.)
 
 ### 3.1 Related work
 
@@ -44,6 +73,13 @@ animate("protagonist", "wave", expression="smile")  → wave.mp4
 | Automatic rigging of a drawing | Meta Animated Drawings (Smith et al., 2023) | auto-rigs one drawing from a single image | one view only, no turns, no face expressions, no hair physics, no self-check — built for children's drawings |
 | Shape deformation | ARAP (Igarashi et al., 2005) | natural-looking bending of 2D shapes | a technique, not a system — used inside my Animator |
 | LLM agents with tools + self-critique | ReAct-style tool use, Reflexion-style self-correction | plan, act, check, retry | not applied to character animation; usually need large models |
+
+**Why not just use an existing tool (OpenToonz, Toon Boom, Live2D, Spine, Blender)?** They are animation
+software for humans: an artist draws the character **in layers** (every part whole, with overlap) and rigs it by
+hand in a GUI. None takes a flat AI-generated image and rigs it automatically, and most can't be driven by an
+agent. The automatic step (*flat image → parts → hidden areas → skeleton → face layers*) is what this project
+had to build. The renderer could be an existing tool: Blender is fully scriptable, and handing the rig to Blender
+as a tool is a natural next step (§18).
 
 **Gap:** nothing turns an *AI-generated character sheet* into a *drift-free, multi-view, expressive* animation *automatically*, from *plain language*, and *checks its own output*.
 
@@ -60,6 +96,7 @@ animate("protagonist", "wave", expression="smile")  → wave.mp4
 3. **Motion that transfers:** actions stored as skeleton motion only → a new character gets every action with zero new animation work (reuse test).
 4. **Small-model design:** the whole agent runs with free open models (3B LLM, small VLM) on a laptop CPU, because code does all computable work and the models only make constrained choices (11.2).
 5. **Measured evidence:** identity drift, flicker, artifacts, foot sliding and blind human ratings against an AI-video baseline and Animated Drawings (Section 14).
+   *As built:* identity, gait, foot slide, planner accuracy, critic results and the reuse test against a commercial AI video (Kling); no human ratings, no Animated Drawings run (`docs/evaluation.md`).
 
 **Not claimed:** inventing 2D rigging, ARAP deformation, or true 3D turns. Motion is 2D puppet-style with view swaps; known limits are listed in Section 17.
 
@@ -413,17 +450,19 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 ---
 
 ## 15. Acceptance criteria
-- Onboarding turns my images into a working rig and face layers with no manual masking
-- `animate()` works for the 5 core actions
-- 5 core expressions work via recipes in the views listed in 9.2 (fallbacks logged)
-- Natural-language request → correct structured call (≥ 95% on the planner test set, local model)
-- Unknown action → asks for video and adds it to the library
-- Critic + fix loop runs, re-runs the right stage, and logs every decision
-- **Ours + critic + stylize** has lower identity drift than Baseline B (non-overlapping 95% CIs); rig-only systems reported as the ≈zero-drift reference
-- Human "not odd" score higher than Baseline A
-- Reuse test: second variant animates with existing actions
-- Demo video + failure-case analysis
-- **Deployed** web app reachable from the examiner's computer; transcript HTML submitted (15.1)
+| Criterion | Status |
+|---|---|
+| Onboarding turns my images into a working rig and face layers with no manual masking | ✅ (front + side; no manual masks) |
+| `animate()` works for the 5 core actions | ⚠ 4 of 5 (idle, wave, look_down, walk) + react and mood walks; turn not built |
+| 5 core expressions work via recipes in the views listed in 9.2 (fallbacks logged) | ✅ front all; side smile / sad / worried / shocked; missing ones fall back to neutral and the critic reports it |
+| Natural-language request → correct structured call (≥ 95% on the planner test set, local model) | ✅ 100% rules + LLM, 97.8% rules only (developer-written set) |
+| Unknown action → asks for video and adds it to the library | ⚠ offline tool (`video_import.py`), not in the app |
+| Critic + fix loop runs, re-runs the right stage, and logs every decision | ✅ metric critic, seal fix, logged in each report; 16 / 4 / 1 on 21 clips |
+| **Ours + critic + stylize** has lower identity drift than Baseline B | ⚠ no stylize; rig-only measured: head width within 2% vs Kling +11% (one clip each, no CIs) |
+| Human "not odd" score higher than Baseline A | ✗ not done |
+| Reuse test: second variant animates with existing actions | ✅ front actions; ⚠ his side walk not presentable |
+| Demo video + failure-case analysis | ✅ showcase + `docs/evaluation.md` limits |
+| **Deployed**, reachable from the examiner's computer; transcript HTML submitted (15.1) | ✅ static Space + live demo; transcript at submission |
 
 ### 15.1 Deployment (viva requirement — submit URL + transcript before **27 Oct 2026, 2 pm**)
 - **Web app:** Gradio UI — type a request ("make her look down sadly, slowly") → shows the plan JSON, the clip, critic scores and fixes tried (report.json). Also lists available actions/expressions, and lets the user upload a reference video for an unknown action.
@@ -440,13 +479,18 @@ Neutral faces = the body views themselves, so **10 face images** to generate. Ea
 Hugging Face now requires a paid PRO plan to host Gradio Spaces on CPU; static Spaces stay free. So:
 - **Permanent public URL (static Space):** https://huggingface.co/spaces/Arcyadav/drift-free-2d-animation-agent
   (page: https://arcyadav-drift-free-2d-animation-agent.static.hf.space)
-  — 12 requests pre-rendered by the agent (rules + local LLM), each with its plan JSON, plus how it works,
-  measured results and honest limits. Built by `deploy/build_static.py`.
+  — 14 requests pre-rendered by the agent (rules + local LLM, checked and fixed by the critic), each with its
+  plan JSON; the second character's front clips; how it works, measured results and honest limits.
+  Built by `deploy/build_static.py`.
 - **Live agent (viva demo):** `python app.py --share` (or `run_demo.bat`) runs the full agent incl. the
   local LLM on the laptop and gives a public `*.gradio.live` link (72 h); `--lan` serves it on the
   intranet. Request → clip in ~10 s on CPU.
 
-## 16. Timeline (10 days)
+## 16. Timeline (10 days, as planned)
+*As built:* the work took longer than 10 days. Most of the extra time went into visual quality (cut-outs,
+the walk, faces), each artefact found by eye and turned into a test. Days 8–9 (full critic, baselines,
+ratings) were cut down, as §0 says.
+
 
 | Day | Work | Checkpoint |
 |---|---|---|
@@ -501,6 +545,20 @@ alongside the rules; a held-out set written by someone else is the fairer measur
   neither check sees them. Not built: VLM "looks odd" vote, DINOv2/LPIPS (no stylize pass, so no
   regenerated pixels to measure).
 
+## 16.2 Lessons
+- **The quality gap is in the input, not the animation.** Professional cut-out rigs look clean because the art is
+  drawn **in layers** (each part whole). This project cuts **flat** drawings, so hidden areas are guessed, and dark
+  clothes expose the guesses (seams, armpits, his oversized sleeve). The biggest next step is asking the image
+  model for a **layered character** (each part on transparency), not more cutting rules.
+- **Every rule came from a failure seen by eye.** Artefacts were found on close-ups, fixed, then turned into
+  regression tests. The critic automates the same loop, and its own rules each came from a checked false alarm.
+- **A second character is the honest test of "automatic".** It needed 6 rules generalised and found 2 new bugs
+  (cracks, 4 feet). Automatic first-pass rigging plus a quick human correction step is the realistic product.
+- **Small models are enough when code does the work.** Rules decide most of each request; the 3B LLM only picks
+  from library options; validation repairs the rest.
+- **Measure before claiming.** Re-measuring the AI-video baseline with a script corrected an earlier claim:
+  the change is in her head/hair (~11% wider), not her body.
+
 ## 17. Risks
 
 | Risk | Likelihood | Mitigation |
@@ -549,8 +607,14 @@ voice + lip sync; more actions (sit, run, pick up, turn); several characters per
 transitions, music. Same character in every shot, exact control and zero cost per clip are exactly what
 multi-shot storytelling needs — and where pure AI video struggles most.
 
-**Generality:** onboarding rules currently assume tee / jeans / sneakers colour classes; a new outfit
-type needs its own garment classes (or a segmentation model as fallback). Measured by the reuse test.
+**Generality:** onboarding rules assume tee / trousers / sneakers; garments are named by colour, or by body
+position when colours don't fit (reuse test). New outfit types (dresses, jackets) need new rules or a segmentation model.
+
+**Layered input (highest value):** ask the image model for the character already split into whole parts on
+transparency, so no hidden area has to be guessed (§16.2).
+
+**Software as a tool:** hand the rig to Blender (fully scriptable) for mesh deformation and better rendering,
+with the agent driving it through tools.
 
 ## 19. Why build it
 - Real need: I want to animate my own story.

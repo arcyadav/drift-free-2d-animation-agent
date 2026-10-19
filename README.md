@@ -1,37 +1,37 @@
 # Drift-Free 2D Character Animation Agent (UMC301 Project 3)
 
-Spec: `project-3-animation-agent-spec.md`
+Type what a character should do in plain language. The agent plans it, animates a rigged 2D character on a
+laptop CPU, checks the clip and fixes what it can. Every frame is the character's own drawing, moved, so she
+never changes between frames or clips.
+
+- **Showcase (public):** https://huggingface.co/spaces/Arcyadav/drift-free-2d-animation-agent
+- **Spec** (plan + status as built, §0): `project-3-animation-agent-spec.md`
+- **Evaluation:** `docs/evaluation.md` · reuse test: `docs/reuse_test.md`
+
+## Run
+```powershell
+C:\Users\ysarc\.venvs\aids_p3\Scripts\Activate.ps1      # Python 3.11 venv, kept outside OneDrive
+ollama serve                                            # local LLM (qwen2.5:3b) for the planner
+python -m src.agent.orchestrator "she walks slowly to the right"   # request -> plan -> critic -> clip
+python app.py --share        # live demo (public gradio.live link, 72 h); --lan for the intranet
+python -m tests.test_critic  # tests: python -m tests.<name>
+```
 
 ## Layout
 ```
-assets/        raw inputs you provide (see assets/README.md)
-characters/    character library (built by onboarding)
-actions/       action library: motion.json, meta.json, sources.md per action
+assets/raw/    input images per character (protagonist at the top level, others in assets/raw/<name>/)
+characters/    character library built by onboarding: views, parts, filled parts, face layers, hands
+actions/       action library (motion only): motion.json, meta.json, sources.md per action
 expressions/   shared expression recipes
 src/
-  onboarding/  Sheet Cleaner, View Checker, Rigger, Face Cutter, Rig Tester
-  agent/       Orchestrator, Planner, Fix Selector
-  animation/   Retargeter, Animator, Renderer, Stylizer
-  critic/      metrics + VLM critic
-  utils/       shared helpers
-notebooks/     Kaggle/Colab notebooks for GPU steps (SAM, inpaint, stylize, baselines)
-outputs/       generated clips, frames, report.json
-tests/
+  onboarding/  sheet_cleaner, view_checker, keypoints, part_masks(_side), hidden_fill, face_cutter, hand_swaps
+  animation/   retarget, rigid_pose (renderer), animator (walks), front_clip, keyframe_*, video_import, seal
+  agent/       planner (rules + local LLM), llm, orchestrator (plan -> critic + fix -> render), eval_planner
+  critic/      critic (cracks, colours, foot slide, plan delivered), eval_critic, identity_compare, gait_metrics
+deploy/        build_static.py (showcase site + upload)
+docs/          evaluation, reuse test, measured results (JSON)
+tests/         regression tests for every stage
+outputs/       generated clips and reports (not in git)
 ```
 
-## Compute
-No local GPU → GPU steps run on Kaggle (T4/P100, ~30 h/week free) or Colab (T4).
-Rig building and animation run on CPU and can run locally.
-
-## Local environment
-Python 3.11 venv kept **outside OneDrive** (so it isn't synced): `C:\Users\ysarc\.venvs\aids_p3`
-
-```powershell
-# activate (PowerShell), from the project folder
-C:\Users\ysarc\.venvs\aids_p3\Scripts\Activate.ps1
-python -m src.utils.check_face assets/raw/faces/front/smile.png
-
-# add a package: put it in requirements.txt, then
-uv pip install -r requirements.txt
-```
-Don't `pip install` into Anaconda base for this project.
+Everything runs on CPU. No GPU, no paid API. Personal recordings (`assets/motion/video/`) are not in git.
