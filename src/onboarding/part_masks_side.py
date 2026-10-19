@@ -52,6 +52,11 @@ COLOURS = {
     "head_hair": (120, 60, 30), "upper_arm_l": (220, 50, 50), "forearm_l": (250, 120, 120),
     "hand_l": (250, 190, 190), "ponytail": (200, 40, 160), "strand_l": (255, 140, 0),
 }
+SHOE_L = 60            # light shoe body (outlines excluded) ...
+SHOE_SPLIT = 1         # ... eroded this much: two shoes drawn touching come apart
+SHOE_MIN_PX = 300      # a separate shoe shape at least this big = the far shoe peeking out
+SHOE_CLOSE = 6         # px: a shoe's light body closed over its own inner lines ...
+SHOE_OUTLINE = 4       # ... and widened by its outline / sole
 FAR_SHADE = 0.88       # far limbs: same art in shadow tone (0.78 read as almost black)
 FAR_SHRINK = 2         # px the far LEG is shrunk so it never peeks through the near leg's edge
 FAR_EDGE = 2.5         # far arm stays this far inside the drawing's outer edge
@@ -187,6 +192,23 @@ def split_parts(rgba, kp, pal):
     jeans &= ~(((cls == ci["tee"]) | light) & ndi.binary_dilation(tee_body, iterations=TEE_TOUCH))
     shoes = body & ~jeans & (yy > kp["l_ankle"][1])
     upper = body & ~jeans & ~shoes
+    # a far shoe peeking out behind the near one (drawn with both feet showing) is not part of
+    # the near foot: the far leg is a copy of the near leg and brings its own shoe (else: 4 feet)
+    # (the denim gap-closing can swallow it, so look below the ankle in the raw colours)
+    below = body & (yy > kp["l_ankle"][1])
+    far_shoe = far_shoe_mask(below & (cls != ci["jeans"]), lab)
+    if far_shoe.any():
+        # both shoes drawn: take each shoe as a whole shape (light body + its outline and sole).
+        # By colour alone, dark outlines and soles next to dark trousers went to the shin and
+        # stayed behind when the foot turned: a ghost shoe outline.
+        def whole(m):
+            m = ndi.binary_fill_holes(ndi.binary_closing(m, disk(SHOE_CLOSE)))
+            return ndi.binary_dilation(m, iterations=SHOE_OUTLINE) & below
+        light = below & ~far_shoe & (lab[..., 0] > SHOE_L)
+        far_shoe = whole(far_shoe & (lab[..., 0] > SHOE_L)) & ~whole(light)
+        shoes = whole(light) & ~far_shoe
+    shoes &= ~far_shoe
+    jeans &= ~(far_shoe | shoes)
 
     sh, el_, wr = kp["l_shoulder"], kp["l_elbow"], kp["l_wrist"]
     # arm skin = the skin component reaching the wrist
@@ -219,7 +241,8 @@ def split_parts(rgba, kp, pal):
     lab_map[shoes] = PART_ID["foot_l"]
 
     near_ids = [PART_ID[n] for n, _ in PARTS if not n.endswith("_r")]
-    cleanup(lab_map, fg, rgba[..., 3] > 0, near_ids)
+    lab_map[far_shoe] = 0
+    cleanup(lab_map, fg & ~far_shoe, (rgba[..., 3] > 0) & ~far_shoe, near_ids)
     # anything above the denim's top edge in its column is tee (the tee hem's back corner
     # and its outline were left on the jeans and floated off when the body leaned)
     denim = cls == ci["jeans"]
@@ -275,6 +298,23 @@ def front_strand(lab_map, L, fg, kp, xx, yy):
     ys, xs = np.where(strand)
     top = ys < ys.min() + 6
     return [round(float(xs[top].mean()), 1), round(float(ys.min()), 1)]
+
+
+def far_shoe_mask(shoes, lab):
+    """pixels of a second (far) shoe: the light shoe shapes split apart by their outlines; the
+    biggest is the near shoe, other big ones are a far shoe; every shoe pixel goes with the
+    nearest shape"""
+    core = ndi.binary_erosion(shoes & (lab[..., 0] > SHOE_L), iterations=SHOE_SPLIT)
+    cl, n = ndi.label(core)
+    if n < 2:
+        return np.zeros_like(shoes)
+    sizes = ndi.sum(core, cl, range(1, n + 1))
+    far = [i + 1 for i, sz in enumerate(sizes) if sz >= SHOE_MIN_PX and i != int(np.argmax(sizes))]
+    if not far:
+        return np.zeros_like(shoes)
+    seeds = np.isin(cl, far) | (cl == int(np.argmax(sizes)) + 1)
+    _, (iy, ix) = ndi.distance_transform_edt(~seeds, return_indices=True)
+    return shoes & np.isin(cl[iy, ix], far)
 
 
 def far_copy(near, shade=FAR_SHADE, shrink=FAR_SHRINK, edge_band=None):
