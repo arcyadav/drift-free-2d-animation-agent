@@ -23,6 +23,7 @@ from src.animation import rigid_pose
 from src.animation.animator import (FPS, ON_TWOS, OUT_H, OUT_W, SCALE, GROUND_SCREEN_Y, background,
                                     plain_background, shot_camera)
 from src.animation.retarget import to_local
+from src.animation.seal import KEY, drawn_holes, id_layers, seal as seal_cracks, to_screen
 from src.utils.io import save_text
 
 FACE_LAYERS = ("eyes", "brows", "mouth")
@@ -44,8 +45,11 @@ SPRINGS = {"ponytail": dict(k=110.0, d=8.0, gain=0.9), "strand_r": dict(k=220.0,
 
 
 class FrontClip:
-    def __init__(self, character, action, expression=None, speed=1.0, seconds=None, shot="full"):
+    def __init__(self, character, action, expression=None, speed=1.0, seconds=None, shot="full",
+                 amplitude=1.0, seal=False):
         self.action, self.expression, self.speed, self.seconds = action, expression, speed, seconds
+        self.amplitude = amplitude                   # motion scale
+        self.seal = seal                             # fill cracks between parts (the critic's fix)
         self.shot = shot
         self.char = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char, "front", "filled")
@@ -82,7 +86,7 @@ class FrontClip:
         f = t * self.speed * self.m["fps"]
         f = f % self.m["frames"] if self.m.get("loop") else min(f, self.m["frames"] - 1)
         i0 = int(np.floor(f)); i1 = min(i0 + 1, self.m["frames"] - 1); w = f - i0
-        world = {k: (1 - w) * v[i0] + w * v[i1] for k, v in self.m["deltas"].items()}
+        world = {k: self.amplitude * ((1 - w) * v[i0] + w * v[i1]) for k, v in self.m["deltas"].items()}
         hand = {k: v[int(round(f))] for k, v in self.m.get("hand", {}).items()}
         return world, hand
 
@@ -149,20 +153,29 @@ class FrontClip:
                     out.append((local, hand, expr, blink[len(out)], (drop, tilted)))
         return out
 
-    def render(self, out_path):
+    def images(self, frames, key=None, step=1, stats=None, with_ids=False):
+        """rendered frames; key = a flat colour instead of the backdrop (the critic's crack check);
+        with_ids: yield (frame, part-ID frame, rest-pose holes on screen)"""
         cam, _, cam_x = shot_camera(self.shot, config.CENTER_X, self.ground_y)
-        bg = background(cam_x, config.CENTER_X, ground_marks=False) if self.shot == "full"             else plain_background()
-        writer = imageio.get_writer(out_path, fps=FPS, codec="libx264", quality=8,
-                                    macro_block_size=8, ffmpeg_log_level="error")
-        frames = self.frames()
-        opened = 0
-        blinks = 0
-        for local, hand, expr, blink, (drop, tilted) in frames:
+        drawn = None
+        if self.seal or with_ids:
+            rest_imgs = dict(self.imgs, **{f"face_{L}": self.face[(L, "neutral")] for L in FACE_LAYERS
+                                           if (L, "neutral") in self.face})
+            drawn = to_screen(drawn_holes(self.meta, rest_imgs), cam, (OUT_W, OUT_H))
+        if key is not None:
+            bg = np.full((OUT_H, OUT_W, 3), key, np.uint8)
+        elif self.shot == "full":
+            bg = background(cam_x, config.CENTER_X, ground_marks=False)
+        else:
+            bg = plain_background()
+        stats = stats if stats is not None else {}
+        stats.update(opened=0, blinks=0, shown=set())
+        for local, hand, expr, blink, (drop, tilted) in frames[::step]:
             imgs = dict(self.imgs)
             for part, pose in hand.items():
                 if pose == "open" and part in self.swaps:
                     imgs[part] = self.swaps[part]
-                    opened += 1
+                    stats["opened"] += 1
             recipe = self.recipes["recipes"].get(expr, self.recipes["recipes"]["neutral"])
             for layer in FACE_LAYERS:
                 src = blink if (layer == "eyes" and blink) else recipe[layer]
@@ -171,14 +184,36 @@ class FrontClip:
                     src = face[layer] if tilted else "neutral"      # face changes as the head tilts
                 if (layer, src) not in self.face:                    # this character lacks it
                     src = "neutral"
+                stats["shown"].add((layer, src))
                 imgs[f"face_{layer}"] = self.face[(layer, src)]
-            blinks += blink == "eyes_closed"
-            writer.append_data(rigid_pose.render(self.meta, imgs, local, camera=cam,
-                                                 offsets={"head": (0.0, drop)} if drop else None,
-                                                 size=(OUT_W, OUT_H), canvas=bg))
+            stats["blinks"] += blink == "eyes_closed"
+            def draw(cv, layers=None):
+                return rigid_pose.render(self.meta, layers or imgs, local, camera=cam,
+                                         offsets={"head": (0.0, drop)} if drop else None,
+                                         size=(OUT_W, OUT_H), canvas=cv)
+            img = draw(bg)
+            ids = None
+            if self.seal or with_ids:
+                keyed = img if key == KEY else draw(np.full((OUT_H, OUT_W, 3), KEY, np.uint8))
+                ids = draw(np.full((OUT_H, OUT_W, 3), KEY, np.uint8), id_layers(imgs))
+                if self.seal:
+                    img = seal_cracks(img, keyed, cam[0, 0] / SCALE, ids, drawn)
+            yield (img, ids, drawn) if with_ids else img
+
+    def keyed(self, key, step=ON_TWOS):
+        return list(self.images(self.frames(), key=key, step=step))
+
+    def render(self, out_path):
+        writer = imageio.get_writer(out_path, fps=FPS, codec="libx264", quality=8,
+                                    macro_block_size=8, ffmpeg_log_level="error")
+        frames = self.frames()
+        st = {}
+        for img in self.images(frames, stats=st):
+            writer.append_data(img)
         writer.close()
-        return {"frames": len(frames), "fps": FPS, "on_twos": True, "open_hand_frames": opened,
-                "blink_closed_frames": int(blinks)}
+        return {"frames": len(frames), "fps": FPS, "on_twos": True, "open_hand_frames": st["opened"],
+                "blink_closed_frames": int(st["blinks"]),
+                "face_layers_shown": sorted(f"{l}:{s}" for l, s in st["shown"])}
 
 
 def run(character="protagonist", action="wave", expression=None, speed=1.0, seconds=None, out=None,

@@ -22,6 +22,7 @@ from PIL import Image
 
 from src import config
 from src.animation import rigid_pose
+from src.animation.seal import KEY, drawn_holes, id_layers, seal as seal_cracks, to_screen
 from src.animation.retarget import Retargeter, load_motion, to_local, vis, wrap
 from src.utils.io import save_text
 
@@ -66,8 +67,10 @@ def two_bone_ik(hip, target, l1, l2, forward_x):
 
 class Walker:
     def __init__(self, character, action="walk", view="side_left", strands=False, speed=1.0,
-                 mirror=False, shot="full", expression=None):
+                 mirror=False, shot="full", expression=None, amplitude=1.0, seal=False):
         self.speed, self.mirror = speed, mirror          # mirror: walk to the right (view graph)
+        self.amplitude = amplitude                       # arm swing scale
+        self.seal = seal                                 # fill cracks between parts (the critic's fix)
         self.shot = shot
         self.char_dir = config.CHARACTERS / character
         self.meta, self.imgs = rigid_pose.load_rig(self.char_dir, view, "filled")
@@ -104,7 +107,8 @@ class Walker:
                                                "pivot": head["pivot"]}
             self.imgs[f"face_{L}"] = layers[L]
         self.meta["layer_order"] = order
-        return {"expression": expression, "eyes": layers["eyes"], "blink": blink, "n_blink": len(blink_src)}
+        return {"expression": expression if expression in recipes else "neutral", "requested": expression,
+                "eyes": layers["eyes"], "blink": blink, "n_blink": len(blink_src)}
 
     def blink_frames(self, n):
         """frame indices showing closed eyes (deterministic, ~every 3 s, held on twos)."""
@@ -143,6 +147,9 @@ class Walker:
         for k in range(0, n_frames, ON_TWOS):
             t = k / FPS * self.speed
             world = self.rt.world_deltas(t)
+            for n in world:
+                if n.startswith(("upper_arm", "forearm", "hand")):
+                    world[n] *= self.amplitude
             off = self.rt.root_offset(t)
             # ---- foot lock ----
             fk, locked = {}, []
@@ -203,23 +210,52 @@ class Walker:
                     out.append((local, off.copy()))
         return out, slide
 
-    def render(self, seconds, out_path):
-        frames, slide = self.poses(seconds)
+    def images(self, frames, key=None, step=1, with_ids=False):
+        """rendered frames; key = a flat colour instead of the backdrop (the critic's crack check);
+        with_ids: yield (frame, part-ID frame, rest-pose holes on screen)"""
         start = np.array(self.P["pelvis"])
+        rest = drawn_holes(self.meta, self.imgs, BENDS) if (self.seal or with_ids) else None
         closed = self.blink_frames(len(frames))
-        writer = imageio.get_writer(out_path, fps=FPS, codec="libx264", quality=8,
-                                    macro_block_size=8, ffmpeg_log_level="error")
-        for k, (local, off) in enumerate(frames):
+        for k in range(0, len(frames), step):
+            local, off = frames[k]
             if self.face:
                 self.imgs["face_eyes"] = self.face["blink"] if k in closed else self.face["eyes"]
             body_x = start[0] + off[0]
             # camera keeps her centred; closer shots follow her bob a little (half of it)
             cam, _, cam_x = shot_camera(self.shot, body_x, self.ground_y, 0.5 * off[1])
-            canvas = self.background(cam_x, body_x) if self.shot == "full" else plain_background()
+            if key is not None:
+                canvas = np.full((OUT_H, OUT_W, 3), key, np.uint8)
+            else:
+                canvas = self.background(cam_x, body_x) if self.shot == "full" else plain_background()
             root = np.array([[1, 0, off[0]], [0, 1, off[1]], [0, 0, 1]])
-            img = rigid_pose.render(self.meta, self.imgs, local, root=root, camera=cam,
-                                    size=(OUT_W, OUT_H), canvas=canvas, bends=BENDS)
-            writer.append_data(img[:, ::-1] if self.mirror else img)
+
+            def draw(cv, layers=None, bends=BENDS):
+                return rigid_pose.render(self.meta, layers or self.imgs, local, root=root, camera=cam,
+                                         size=(OUT_W, OUT_H), canvas=cv, bends=bends)
+            img = draw(canvas)
+            ids = drawn = None
+            if self.seal or with_ids:
+                keyed = img if key == KEY else draw(np.full((OUT_H, OUT_W, 3), KEY, np.uint8))
+                # which part is where (rigid knees are close enough, and 3x faster)
+                ids = draw(np.full((OUT_H, OUT_W, 3), KEY, np.uint8), id_layers(self.imgs), bends=())
+                drawn = to_screen(rest, cam @ root, (OUT_W, OUT_H))
+                if self.seal:
+                    img = seal_cracks(img, keyed, cam[0, 0] / SCALE, ids, drawn)
+            if self.mirror:
+                img = img[:, ::-1]
+                ids, drawn = (ids[:, ::-1], drawn[:, ::-1]) if ids is not None else (None, None)
+            yield (img, ids, drawn) if with_ids else img
+
+    def keyed(self, seconds, key, step=ON_TWOS):
+        return list(self.images(self.poses(seconds)[0], key=key, step=step))
+
+    def render(self, seconds, out_path):
+        frames, slide = self.poses(seconds)
+        closed = self.blink_frames(len(frames))
+        writer = imageio.get_writer(out_path, fps=FPS, codec="libx264", quality=8,
+                                    macro_block_size=8, ffmpeg_log_level="error")
+        for img in self.images(frames):
+            writer.append_data(img)
         writer.close()
         rep = {"frames": len(frames), "fps": FPS, "on_twos": True, "seconds": seconds,
                "expression": self.face["expression"] if self.face else None, "blink_frames": len(closed),

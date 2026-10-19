@@ -82,7 +82,7 @@ def build(render=True):
             shutil.copy2(f, clips / f"male_{name}.mp4")
             male_cards += (f'<div class="card"><video src="clips/male_{name}.mp4" controls loop muted playsinline '
                            f'preload="metadata"></video><div class="body"><div class="req">{label}</div>'
-                           f'<div class="note">same motion as the protagonist</div></div></div>')
+                           f'<div class="note">same motion as the protagonist · checked by the critic</div></div></div>')
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Drift-Free Animation Agent</title><style>{CSS}</style></head><body><main>
 <h1>Drift-Free 2D Character Animation Agent</h1>
@@ -107,6 +107,9 @@ and face layers (eyes / brows / mouth) cut and aligned.</li>
 video (pose detector → angles), idle and look-down as code keyframes. Any character reuses them.</li>
 <li><b>Planner:</b> rules first; a small local LLM (qwen2.5:3b) only chooses from the library's options for what the rules
 could not decide; every plan is validated and repaired (e.g. a sad face in side view → body-language sad walk).</li>
+<li><b>Critic:</b> every clip is checked before it is written: cracks between parts (a key-colour + part-ID render;
+only gaps the drawing did not have), off-model colours, foot slide, and whether the plan was delivered. Cracks are sealed
+and re-checked; a missing image is named for the user.</li>
 <li><b>Animator:</b> foot lock with 2-bone IK (planted foot slides 0.0 px), soft knees, hair springs, blinks, face layers,
 24 fps animated on twos, camera shots.</li>
 </ol>
@@ -116,6 +119,7 @@ could not decide; every plan is validated and repaired (e.g. a sad face in side 
 <tr><td>Planted-foot slide (no lock → foot lock)</td><td>4.7 → 0.0 px per frame</td></tr>
 <tr><td>Walk vs. an AI-video reference (steps/s, step length, bob)</td><td>1.33 / 0.60 / 0.045 vs. 1.39 / 0.59 / 0.063</td></tr>
 <tr><td>Identity: commercial AI video of the same character</td><td>body widened 8–13% vs. the drawing; ours: pixel-exact</td></tr>
+<tr><td>Critic on 21 clips (both characters): pass first / cracks fixed by seal / needs a new image</td><td>16 / 4 / 1 · off-model colours ≤ 1.2%</td></tr>
 <tr><td>Render time</td><td>~3–17 s per clip on a laptop CPU, no GPU</td></tr>
 </table>
 <h2>Honest limits</h2>

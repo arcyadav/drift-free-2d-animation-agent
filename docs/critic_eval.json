@@ -1,0 +1,310 @@
+{
+  "summary": {
+    "clips": 21,
+    "pass_first": 16,
+    "fixed_by_seal": 4,
+    "unfixed_need_images": 1,
+    "max_off_model_colours": 0.0117,
+    "mean_critic_seconds": 24.5
+  },
+  "rows": [
+    {
+      "character": "protagonist",
+      "request": "make her wave happily",
+      "action": "wave",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 20 (39 px)",
+      "off_model_colours": 0.0025,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 19.7
+    },
+    {
+      "character": "protagonist",
+      "request": "close-up of her face, she smiles and waves",
+      "action": "wave",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.01,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 27.4
+    },
+    {
+      "character": "protagonist",
+      "request": "she says goodbye to her mom",
+      "action": "wave",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 20 (39 px)",
+      "off_model_colours": 0.0025,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 15.0
+    },
+    {
+      "character": "protagonist",
+      "request": "she just heard terrible news",
+      "action": "look_down",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0009,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 12.0
+    },
+    {
+      "character": "protagonist",
+      "request": "her phone fell in the drain, she is shocked!",
+      "action": "react",
+      "first_failed": [
+        "cracks"
+      ],
+      "fixes": [
+        "seal"
+      ],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 40 (151 px)",
+      "off_model_colours": 0.007,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 23.8
+    },
+    {
+      "character": "protagonist",
+      "request": "close-up, she is worried",
+      "action": "look_down",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0061,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 18.4
+    },
+    {
+      "character": "protagonist",
+      "request": "she looks down, wondering hmm",
+      "action": "look_down",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0008,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 13.6
+    },
+    {
+      "character": "protagonist",
+      "request": "medium shot, she looks down sadly",
+      "action": "look_down",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0015,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 16.8
+    },
+    {
+      "character": "protagonist",
+      "request": "she stands and waits",
+      "action": "idle",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.003,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 15.0
+    },
+    {
+      "character": "protagonist",
+      "request": "she walks to the left",
+      "action": "walk",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (53 px)",
+      "off_model_colours": 0.0036,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 26.5
+    },
+    {
+      "character": "protagonist",
+      "request": "she walks slowly to the right",
+      "action": "walk",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 24 (76 px)",
+      "off_model_colours": 0.0048,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 22.6
+    },
+    {
+      "character": "protagonist",
+      "request": "she is walking lost in thoughts and grieved",
+      "action": "walk_sad",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0023,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 21.5
+    },
+    {
+      "character": "protagonist",
+      "request": "walking cheerfully, hoping",
+      "action": "walk_happy",
+      "first_failed": [
+        "cracks"
+      ],
+      "fixes": [
+        "seal"
+      ],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 12 (729 px)",
+      "off_model_colours": 0.0076,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 49.8
+    },
+    {
+      "character": "protagonist",
+      "request": "medium shot, she walks worried",
+      "action": "walk_worried",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0016,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 24.0
+    },
+    {
+      "character": "male",
+      "request": "make him wave happily",
+      "action": "wave",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 20 (44 px)",
+      "off_model_colours": 0.0025,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 19.0
+    },
+    {
+      "character": "male",
+      "request": "he just heard terrible news",
+      "action": "look_down",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.001,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 13.3
+    },
+    {
+      "character": "male",
+      "request": "he looks down sadly",
+      "action": "look_down",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.001,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 13.5
+    },
+    {
+      "character": "male",
+      "request": "he stands and waits",
+      "action": "idle",
+      "first_failed": [],
+      "fixes": [],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 0 (0 px)",
+      "off_model_colours": 0.0025,
+      "foot_slide": null,
+      "notes": [],
+      "seconds": 14.1
+    },
+    {
+      "character": "male",
+      "request": "he walks to the left",
+      "action": "walk",
+      "first_failed": [
+        "cracks"
+      ],
+      "fixes": [
+        "seal"
+      ],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 32 (514 px)",
+      "off_model_colours": 0.0076,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 50.9
+    },
+    {
+      "character": "male",
+      "request": "walking cheerfully, hoping",
+      "action": "walk_happy",
+      "first_failed": [
+        "cracks"
+      ],
+      "fixes": [
+        "seal"
+      ],
+      "final_failed": [],
+      "cracks_px_first": "worst at frame 12 (579 px)",
+      "off_model_colours": 0.0117,
+      "foot_slide": 0.0,
+      "notes": [],
+      "seconds": 48.1
+    },
+    {
+      "character": "male",
+      "request": "he walks sadly",
+      "action": "walk_sad",
+      "first_failed": [
+        "cracks",
+        "expression"
+      ],
+      "fixes": [
+        "seal"
+      ],
+      "final_failed": [
+        "expression"
+      ],
+      "cracks_px_first": "worst at frame 28 (159 px)",
+      "off_model_colours": 0.0093,
+      "foot_slide": 0.0,
+      "notes": [
+        "no 'sad' face for this view: add faces/side_left/sad.png"
+      ],
+      "seconds": 49.7
+    }
+  ]
+}

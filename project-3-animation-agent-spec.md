@@ -481,6 +481,25 @@ only for the slots the rules leave empty, then validate → repair → log. On t
 (model called for 29 of 40, ~5 s each on CPU, cached). Caveat: the test set was written by the developer
 alongside the rules; a held-out set written by someone else is the fairer measure.
 
+**Critic (built, Oct 2026).** Metric-only, CPU, ~25 s per clip, runs before the clip is written
+(`src/critic/critic.py`, `src/animation/seal.py`, evaluation `src/critic/eval_critic.py` → `docs/critic_eval.json`):
+- *cracks*: the poses are re-rendered on a green key colour plus a part-ID render; a crack is background
+  showing through **between two parts**, as a thin sliver (≤ 8 px half-width, area ≥ 8 × width²), that the
+  **rest pose did not have**. Each rule came from a false alarm: magenta key hit skin and sneakers → green; gaps
+  between curls in close-ups → "was it in the drawing?"; the triangle between the legs closed by the feet → the sliver rule.
+- *colours* (identity): share of character pixels whose colour does not occur in the character's own images.
+- *foot slide*; *plan delivered* (requested expression available, open hand in a wave, blinks).
+- **Fix loop:** cracks → *seal* (inpaint only those slivers from the surrounding colours) → re-check, max 3 tries,
+  logged in each clip's report. Missing images can't be fixed by re-rendering, so the critic names the file to add.
+- **First fix tried and rejected:** moving less. Cracks are rig defects, not motion: his walk still cracked at
+  half the arm swing, and react cracked *more* with the arms half raised.
+- **Result on 21 clips** (14 showcase requests + 7 of the second character): 16 pass first time, 4 cracked and
+  were fixed by the seal, 1 unfixable (his side "sad" face is missing; the critic names `faces/side_left/sad.png`).
+  Off-model colours ≤ 1.2% in every clip.
+- **Blind spot:** light pixels baked *into* a part at onboarding (his A-pose armpit area) aren't background, so
+  neither check sees them. Not built: VLM "looks odd" vote, DINOv2/LPIPS (no stylize pass, so no
+  regenerated pixels to measure).
+
 ## 17. Risks
 
 | Risk | Likelihood | Mitigation |
