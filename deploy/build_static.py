@@ -75,8 +75,10 @@ def build(render=True):
 <details><summary>plan JSON</summary><pre>{html.escape(json.dumps(plan, indent=2))}</pre></details></div></div>""")
     male_cards = ""
     male = ROOT / "outputs" / "male"
-    for name, label in (("wave", "wave (smile, open hand)"), ("walk_happy", "happy walk (profile smile)"),
-                        ("look_down", "look down (sad)"), ("idle", "idle (blinks)")):
+    # front clips only: his side-view walk is not presentable (on his dark tee the torso / sleeve
+    # pieces read as cut apart from the trousers while walking — documented in docs/reuse_test.md)
+    for name, label in (("wave", "wave (smile, open hand)"), ("look_down", "look down (sad)"),
+                        ("idle", "idle (blinks)")):
         f = male / f"{name}.mp4"
         if f.exists():
             shutil.copy2(f, clips / f"male_{name}.mp4")
@@ -96,7 +98,8 @@ character <b>never changes</b> between frames or clips. UMC301 Project 3.</p>
 <div class="grid">{''.join(cards)}</div>
 <h2>Second character — reuse test</h2>
 <p class="lead">A different character, onboarded automatically from 8 images, performing the <b>same
-motion files</b> — zero new animation work.</p>
+motion files</b> — zero new animation work. His side-view walk works mechanically but is not shown: on his
+dark tee the torso and sleeve pieces read as cut apart from the trousers (see limits).</p>
 <div class="grid">{male_cards}</div>
 <h2>How it works</h2>
 <ol>
@@ -125,7 +128,9 @@ and re-checked; a missing image is named for the user.</li>
 <h2>Honest limits</h2>
 <ul><li>Cut-out (puppet) look: rigid sleeves, no cloth simulation — AI video has richer frames, but redraws the character.</li>
 <li>Side view: smile / sad / worried / shocked faces from profile images; other moods fall back to neutral.</li>
-<li>Onboarding rules assume tee / jeans / sneakers; new outfit types need new garment rules.</li></ul>
+<li>Onboarding rules assume tee / jeans / sneakers; new outfit types need new garment rules.</li>
+<li>Second character, side view: with no visible sleeve seam on his dark tee, the sleeve piece is cut too large, so
+while walking his torso reads as separate from his trousers. Layered art (each part drawn whole) would remove this.</li></ul>
 </main></body></html>"""
     (SITE / "index.html").write_text(page, encoding="utf-8")
     meta = ["---", "title: Drift-Free 2D Animation Agent", "colorFrom: yellow", "colorTo: blue",
