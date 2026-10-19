@@ -1,0 +1,55 @@
+{
+  "drawing": {
+    "height_px": 1343,
+    "head": 0.14668652271034996,
+    "torso": 0.12509307520476545
+  },
+  "ours (walk, rig)": {
+    "first_frame_vs_drawing_pct": {
+      "head": 0.0,
+      "torso": 8.6
+    },
+    "height_sd_pct": 0.8,
+    "head": {
+      "vs_drawing_median_pct": -0.6,
+      "vs_drawing_range_pct": [
+        -2.1,
+        0.0
+      ],
+      "frame_to_frame_sd_pct": 0.9
+    },
+    "torso": {
+      "vs_drawing_median_pct": 2.2,
+      "vs_drawing_range_pct": [
+        -3.4,
+        8.6
+      ],
+      "frame_to_frame_sd_pct": 3.9
+    },
+    "frames_measured": 30
+  },
+  "assets/baseline/kling_20261017_VIDEO_____The_gi_3334_0.mp4": {
+    "first_frame_vs_drawing_pct": {
+      "head": 10.4,
+      "torso": 0.2
+    },
+    "height_sd_pct": 0.5,
+    "head": {
+      "vs_drawing_median_pct": 11.1,
+      "vs_drawing_range_pct": [
+        10.1,
+        12.7
+      ],
+      "frame_to_frame_sd_pct": 0.7
+    },
+    "torso": {
+      "vs_drawing_median_pct": 1.8,
+      "vs_drawing_range_pct": [
+        -4.1,
+        16.2
+      ],
+      "frame_to_frame_sd_pct": 5.9
+    },
+    "frames_measured": 31
+  }
+}

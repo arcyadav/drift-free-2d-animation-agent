@@ -118,10 +118,10 @@ and re-checked; a missing image is named for the user.</li>
 </ol>
 <h2>Measured</h2>
 <table><tr><th>Check</th><th>Result</th></tr>
-<tr><td>Planner, 45 requests (rules only / rules + LLM)</td><td>89% / 98% fully right</td></tr>
-<tr><td>Planted-foot slide (no lock → foot lock)</td><td>4.7 → 0.0 px per frame</td></tr>
+<tr><td>Planner, 46 requests (rules only / rules + LLM)</td><td>97.8% / 100% fully right (developer-written test set)</td></tr>
+<tr><td>Planted-foot slide (no lock → foot lock)</td><td>max 3.4 → 0.0 px per frame</td></tr>
 <tr><td>Walk vs. an AI-video reference (steps/s, step length, bob)</td><td>1.33 / 0.60 / 0.045 vs. 1.39 / 0.59 / 0.063</td></tr>
-<tr><td>Identity: commercial AI video of the same character</td><td>body widened 8–13% vs. the drawing; ours: pixel-exact</td></tr>
+<tr><td>Identity: commercial AI video of the same character</td><td>head/hair drawn ~11% wider than the drawing in every frame; ours: within 2% (only her own pixels, moved)</td></tr>
 <tr><td>Critic on 21 clips (both characters): pass first / cracks fixed by seal / needs a new image</td><td>16 / 4 / 1 · off-model colours ≤ 1.2%</td></tr>
 <tr><td>Render time</td><td>~3–17 s per clip on a laptop CPU, no GPU</td></tr>
 </table>

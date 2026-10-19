@@ -471,7 +471,7 @@ Hugging Face now requires a paid PRO plan to host Gradio Spaces on CPU; static S
 - Hidden areas: underlap (a part continues under the part in front, local flat colour) + joint caps (discs that copy the art under them) — invisible at rest, tested against the original drawing.
 - Side view: far arm / leg = shadow-tone copies of the near limbs; the torso is a child of the pelvis and bends at the waist.
 
-**Motion.** The Mixamo walk (adult, long stride, bent arms) looked stiff on this character, and keyed cartoon up/down looked like lunges. The library walk is built from foot paths like a real gait: the support leg stays nearly straight and the body vaults over it, falls forward (5° lean) into each heel strike, the back heel lifts at push-off; soft knees via linear blend skinning. Measured: planted-foot slide 4.7 → 0.0 px/frame with the foot lock (`outputs/walk.json`).
+**Motion.** The Mixamo walk (adult, long stride, bent arms) looked stiff on this character, and keyed cartoon up/down looked like lunges. The library walk is built from foot paths like a real gait: the support leg stays nearly straight and the body vaults over it, falls forward (5° lean) into each heel strike, the back heel lifts at push-off; soft knees via linear blend skinning. Measured: planted-foot slide max 3.4 → 0.0 px/frame with the foot lock (`outputs/walk.json`; an earlier walk version measured 4.7 → 0.0).
 
 **Lesson for the evaluation:** every visual fix was found by looking at close-ups of rendered frames and then turned into an automatic check — the same loop the Critic automates.
 
@@ -480,6 +480,7 @@ only for the slots the rules leave empty, then validate → repair → log. On t
 (`tests/planner_cases.json`): rules only 88% of requests fully right (no model call), rules + LLM 98%
 (model called for 29 of 40, ~5 s each on CPU, cached). Caveat: the test set was written by the developer
 alongside the rules; a held-out set written by someone else is the fairer measure.
+**Update (Oct 2026, 46 requests):** rules only 97.8%, rules + LLM 100% (LLM in 22 of 46). Full evaluation: `docs/evaluation.md`.
 
 **Critic (built, Oct 2026).** Metric-only, CPU, ~25 s per clip, runs before the clip is written
 (`src/critic/critic.py`, `src/animation/seal.py`, evaluation `src/critic/eval_critic.py` → `docs/critic_eval.json`):
@@ -541,7 +542,7 @@ elbows (as already done at the knees); a simple shading pass (shadow where an ar
   adapter (IP-Adapter or a LoRA trained on the character sheet) → AI adds shading and cloth detail,
   the rig fixes pose, layout and timing
 - video-to-video stylisation constrained by our frames; the critic measures identity drift (it already
-  detected an 8–13% body widening in a commercial AI video) and rejects frames that change the character
+  measured a commercial AI video drawing her head/hair ~11% wider in every frame, see `docs/evaluation.md`) and rejects frames that change the character
 
 **Towards animated stories:** script → shot list → actions + expressions (the Planner is the first step);
 voice + lip sync; more actions (sit, run, pick up, turn); several characters per scene; cuts,
